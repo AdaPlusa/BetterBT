@@ -1,0 +1,245 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int            @id @default(autoincrement())
+  email        String         @unique
+  password     String
+  firstName    String?
+  lastName     String?
+  roleId       Int
+  role         Role           @relation(fields: [roleId], references: [id])
+  departmentId Int?
+  department   Department?    @relation(fields: [departmentId], references: [id])
+  trips        BusinessTrip[]
+  logs         SystemLog[]
+}
+
+model Role {
+  id          Int          @id @default(autoincrement())
+  name        String       // np. Admin, User, Manager
+  users       User[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          Int              @id @default(autoincrement())
+  name        String           // np. CAN_EDIT_TRIPS
+  roles       RolePermission[]
+}
+
+// Tabela łącząca (Many-to-Many)
+model RolePermission {
+  id           Int        @id @default(autoincrement())
+  roleId       Int
+  role         Role       @relation(fields: [roleId], references: [id])
+  permissionId Int
+  permission   Permission @relation(fields: [permissionId], references: [id])
+}
+
+model Department {
+  id    Int    @id @default(autoincrement())
+  name  String // np. IT, HR
+  users User[]
+}
+
+model UserPreferences {
+  id        Int     @id @default(autoincrement())
+  userId    Int     @unique // Jeden user = jedne ustawienia
+  theme     String  @default("light")
+  language  String  @default("pl")
+}
+
+// --- MODUŁ 2: DELEGACJE (CORE) (8 tabel) ---
+
+model BusinessTrip {
+  id             Int                  @id @default(autoincrement())
+  userId         Int
+  user           User                 @relation(fields: [userId], references: [id])
+  statusId       Int
+  status         TripStatus           @relation(fields: [statusId], references: [id])
+  typeId         Int
+  type           TripType             @relation(fields: [typeId], references: [id])
+  startDate      DateTime
+  endDate        DateTime
+  purpose        String
+  destinationId  Int
+  destination    City                 @relation(fields: [destinationId], references: [id])
+  transports     TransportBooking[]
+  accommodations AccommodationBooking[]
+  expenseReport  ExpenseReport?
+}
+
+model TripStatus {
+  id    Int            @id @default(autoincrement())
+  name  String         // np. Nowa, Zaakceptowana, W trakcie, Rozliczona
+  trips BusinessTrip[]
+}
+
+model TripType {
+  id    Int            @id @default(autoincrement())
+  name  String         // np. Krajowa, Zagraniczna
+  trips BusinessTrip[]
+}
+
+model TransportBooking {
+  id          Int             @id @default(autoincrement())
+  tripId      Int
+  trip        BusinessTrip    @relation(fields: [tripId], references: [id])
+  providerId  Int
+  provider    TransportProvider @relation(fields: [providerId], references: [id])
+  typeId      Int
+  type        TransportType   @relation(fields: [typeId], references: [id])
+  cost        Decimal
+}
+
+model TransportProvider {
+  id       Int                @id @default(autoincrement())
+  name     String             // np. PKP, LOT, Uber
+  bookings TransportBooking[]
+}
+
+model TransportType {
+  id       Int                @id @default(autoincrement())
+  name     String             // np. Pociąg, Samolot
+  bookings TransportBooking[]
+}
+
+model AccommodationBooking {
+  id       Int          @id @default(autoincrement())
+  tripId   Int
+  trip     BusinessTrip @relation(fields: [tripId], references: [id])
+  hotelId  Int
+  hotel    Hotel        @relation(fields: [hotelId], references: [id])
+  checkIn  DateTime
+  checkOut DateTime
+}
+
+model Hotel {
+  id       Int                    @id @default(autoincrement())
+  name     String
+  cityId   Int
+  city     City                   @relation(fields: [cityId], references: [id])
+  bookings AccommodationBooking[]
+}
+
+// --- MODUŁ 3: SŁOWNIKI I LOKALIZACJA (6 tabel) ---
+
+model Country {
+  id     Int    @id @default(autoincrement())
+  name   String
+  code   String // np. PL, DE
+  cities City[]
+}
+
+model City {
+  id        Int            @id @default(autoincrement())
+  name      String
+  countryId Int
+  country   Country        @relation(fields: [countryId], references: [id])
+  hotels    Hotel[]
+  trips     BusinessTrip[]
+}
+
+model Currency {
+  id            Int            @id @default(autoincrement())
+  code          String         // PLN, EUR
+  name          String
+  exchangeRates ExchangeRate[]
+}
+
+model ExchangeRate {
+  id         Int      @id @default(autoincrement())
+  currencyId Int
+  currency   Currency @relation(fields: [currencyId], references: [id])
+  date       DateTime
+  rate       Decimal
+}
+
+model VatRate {
+  id    Int     @id @default(autoincrement())
+  rate  Int     // np. 23, 8, 0
+  label String  // np. "Stawka podstawowa"
+}
+
+model DietRate {
+  id        Int     @id @default(autoincrement())
+  countryId Int // Powiązanie luźne (bez relacji dla uproszczenia diagramu)
+  amount    Decimal
+  currency  String
+}
+
+// --- MODUŁ 4: ROZLICZENIA (6 tabel) ---
+
+model ExpenseReport {
+  id          Int           @id @default(autoincrement())
+  tripId      Int           @unique
+  trip        BusinessTrip  @relation(fields: [tripId], references: [id])
+  totalAmount Decimal
+  status      String        // np. Draft, Sent, Approved
+  items       ExpenseItem[]
+}
+
+model ExpenseItem {
+  id         Int             @id @default(autoincrement())
+  reportId   Int
+  report     ExpenseReport   @relation(fields: [reportId], references: [id])
+  categoryId Int
+  category   ExpenseCategory @relation(fields: [categoryId], references: [id])
+  amount     Decimal
+  date       DateTime
+  description String?
+  receiptId  Int?            @unique
+  receipt    Receipt?        @relation(fields: [receiptId], references: [id])
+}
+
+model ExpenseCategory {
+  id    Int           @id @default(autoincrement())
+  name  String        // np. Wyżywienie, Transport Miejski
+  items ExpenseItem[]
+}
+
+model Receipt {
+  id          Int          @id @default(autoincrement())
+  fileName    String
+  fileUrl     String
+  uploadedAt  DateTime     @default(now())
+  expenseItem ExpenseItem?
+}
+
+// --- MODUŁ 5: SYSTEM I LOGI (4 tabele) ---
+
+model SystemLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  action    String   // np. "LOGIN", "DELETE_TRIP"
+  timestamp DateTime @default(now())
+}
+
+model ErrorLog {
+  id        Int      @id @default(autoincrement())
+  message   String
+  stack     String?
+  timestamp DateTime @default(now())
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int      // Luźne powiązanie
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model AppSetting {
+  id    Int    @id @default(autoincrement())
+  key   String @unique // np. "MAX_TRIP_DAYS"
+  value String // np. "14"
+}
