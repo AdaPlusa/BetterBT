@@ -29,7 +29,7 @@ app.get("/", (req, res) => {
 // REJESTRACJA
 app.post("/auth/register", async (req, res) => {
   try {
-    const { email, password, firstName, lastName } = req.body;
+    const { email, password, firstName, lastName, roleId } = req.body;
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       return res
@@ -43,7 +43,7 @@ app.post("/auth/register", async (req, res) => {
         password: hashedPassword,
         firstName,
         lastName,
-        roleId: 2, // Domyślna rola: User
+        roleId: roleId ? parseInt(roleId) : 2, // Domyślna rola: User (2)
       },
     });
     res.json({ message: "Rejestracja udana!", user: newUser });
@@ -168,6 +168,65 @@ app.post("/transport-types", async (req, res) => {
   }
 });
 
+// --- 6. DELEGACJE (Trips) ---
+app.post("/trips", async (req, res) => {
+  try {
+    const { userId, destinationId, startDate, endDate, purpose, transportType, transportCost, hotelId, hotelCheckIn, hotelCheckOut } = req.body;
+
+    // Prosta walidacja 
+    const newTrip = await prisma.businessTrip.create({
+      data: {
+        userId: parseInt(userId),
+        destinationId: parseInt(destinationId),
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+        purpose: purpose,
+        statusId: 1, // Domyślnie: Nowa
+        typeId: 1,   // Domyślnie: Krajowa
+        // Opcjonalnie dodajemy transport jeśli wybrano
+        ...(transportType && {
+            transports: {
+                create: {
+                    typeId: 1, // Domyślnie 1 (np. Pociąg) - uproszczenie dla MVP
+                    providerId: 1, // Domyślnie 1 (np. PKP)
+                    cost: parseFloat(transportCost || 0)
+                }
+            }
+        }),
+        // Opcjonalnie dodajemy hotel jeśli wybrano
+        ...(hotelId && {
+            accommodations: {
+                create: {
+                    hotelId: parseInt(hotelId),
+                    checkIn: new Date(hotelCheckIn || startDate),
+                    checkOut: new Date(hotelCheckOut || endDate)
+                }
+            }
+        })
+      }
+    });
+
+    res.json(newTrip);
+  } catch (error) {
+    console.error("Błąd tworzenia delegacji:", error);
+    res.status(500).json({ error: "Błąd tworzenia delegacji", details: error.message });
+  }
+});
+
+app.get("/trips", async (req, res) => {
+    const { userId } = req.query;
+    try {
+        const where = userId ? { userId: parseInt(userId) } : {};
+        const trips = await prisma.businessTrip.findMany({
+            where,
+            include: { destination: true, status: true, user: true }
+        });
+        res.json(trips);
+    } catch (error) {
+        res.status(500).json({ error: "Błąd pobierania delegacji" });
+    }
+});
+
 // ==========================================
 // START SERWERA + AUTO-SEED
 // ==========================================
@@ -192,6 +251,38 @@ app.listen(PORT, async () => {
       });
       console.log("✅ Role dodane!");
     }
+
+    // 2. TripStatus
+    if ((await prisma.tripStatus.count()) === 0) {
+      await prisma.tripStatus.createMany({
+        data: [{ name: "Nowa" }, { name: "Zatwierdzona" }, { name: "Odrzucona" }, { name: "Rozliczona" }],
+      });
+      console.log("✅ TripStatuses dodane");
+    }
+
+    // 3. TripType
+    if ((await prisma.tripType.count()) === 0) {
+      await prisma.tripType.createMany({
+        data: [{ name: "Krajowa" }, { name: "Zagraniczna" }, { name: "Szkoleniowa" }],
+      });
+      console.log("✅ TripTypes dodane");
+    }
+
+    // 4. TransportType (Słownik transportu dla bazy)
+    if ((await prisma.transportType.count()) === 0) {
+      await prisma.transportType.createMany({
+        data: [{ name: "Pociąg" }, { name: "Samolot" }, { name: "Auto" }],
+      });
+      console.log("✅ TransportTypes dodane");
+    }
+    
+    // 5. TransportProvider (Dostawcy)
+    if ((await prisma.transportProvider.count()) === 0) {
+        await prisma.transportProvider.createMany({
+          data: [{ name: "PKP" }, { name: "LOT" }, { name: "Uber" }],
+        });
+        console.log("✅ TransportProviders dodane");
+      }
   } catch (e) {
     console.log("Info: Baza danych gotowa.");
   }
