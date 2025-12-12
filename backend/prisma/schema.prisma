@@ -132,10 +132,11 @@ model Hotel {
 // --- MODUŁ 3: SŁOWNIKI I LOKALIZACJA (6 tabel) ---
 
 model Country {
-  id     Int    @id @default(autoincrement())
-  name   String
-  code   String // np. PL, DE
-  cities City[]
+  id        Int    @id @default(autoincrement())
+  name      String
+  code      String // np. PL, DE
+  continent String? // np. Europa, Azja
+  cities    City[]
 }
 
 model City {

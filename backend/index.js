@@ -88,11 +88,42 @@ app.get("/countries", async (req, res) => {
 
 app.post("/countries", async (req, res) => {
   try {
-    const { name, code } = req.body;
-    const newCountry = await prisma.country.create({ data: { name, code } });
+    const { name, code, continent } = req.body;
+    const newCountry = await prisma.country.create({ 
+      data: { name, code, continent } 
+    });
     res.json(newCountry);
   } catch (error) {
     res.status(500).json({ error: "Nie udało się dodać kraju" });
+  }
+});
+
+app.put("/countries/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, code, continent } = req.body;
+    const updatedCountry = await prisma.country.update({
+      where: { id: parseInt(id) },
+      data: { name, code, continent },
+    });
+    res.json(updatedCountry);
+  } catch (error) {
+    res.status(500).json({ error: "Nie udało się zaktualizować kraju" });
+  }
+});
+
+app.delete("/countries/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.country.delete({
+      where: { id: parseInt(id) },
+    });
+    res.json({ message: "Kraj usunięty" });
+  } catch (error) {
+    // Prisma rzuci błąd np. P2003 jeśli są powiązane rekordy (Foreign Key)
+    res.status(500).json({
+      error: "Nie można usunąć kraju. Prawdopodobnie są do niego przypisane miasta.",
+    });
   }
 });
 
@@ -114,6 +145,37 @@ app.post("/cities", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       error: "Błąd dodawania miasta. Sprawdź czy countryId istnieje!",
+    });
+  }
+});
+
+app.put("/cities/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, countryId } = req.body;
+    const updatedCity = await prisma.city.update({
+      where: { id: parseInt(id) },
+      data: { 
+        name, 
+        countryId: parseInt(countryId) 
+      },
+    });
+    res.json(updatedCity);
+  } catch (error) {
+    res.status(500).json({ error: "Nie udało się zaktualizować miasta" });
+  }
+});
+
+app.delete("/cities/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.city.delete({
+      where: { id: parseInt(id) },
+    });
+    res.json({ message: "Miasto usunięte" });
+  } catch (error) {
+    res.status(500).json({
+      error: "Nie można usunąć miasta. Prawdopodobnie są do niego przypisane hotele lub delegacje.",
     });
   }
 });
@@ -149,6 +211,37 @@ app.post("/hotels", async (req, res) => {
     res.json(newHotel);
   } catch (error) {
     res.status(500).json({ error: "Błąd dodawania hotelu" });
+  }
+});
+
+app.put("/hotels/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, cityId } = req.body;
+    const updatedHotel = await prisma.hotel.update({
+      where: { id: parseInt(id) },
+      data: { 
+        name, 
+        cityId: parseInt(cityId) 
+      },
+    });
+    res.json(updatedHotel);
+  } catch (error) {
+    res.status(500).json({ error: "Nie udało się zaktualizować hotelu" });
+  }
+});
+
+app.delete("/hotels/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.hotel.delete({
+      where: { id: parseInt(id) },
+    });
+    res.json({ message: "Hotel usunięty" });
+  } catch (error) {
+    res.status(500).json({
+      error: "Nie można usunąć hotelu. Prawdopodobnie jest używany w delegacjach.",
+    });
   }
 });
 
