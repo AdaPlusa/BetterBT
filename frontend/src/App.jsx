@@ -6,6 +6,9 @@ import DashboardPage from './pages/DashboardPage';
 import CountriesPage from './pages/dictionaries/CountriesPage';
 import CitiesPage from './pages/dictionaries/CitiesPage';
 import HotelsPage from './pages/dictionaries/HotelsPage';
+import TransportPage from './pages/dictionaries/TransportPage';
+import TransportRoutesPage from './pages/dictionaries/TransportRoutesPage';
+import UsersPage from './pages/admin/UsersPage';
 import TripWizardPage from './pages/TripWizardPage';
 import ProtectedLayout from './components/ProtectedLayout';
 
@@ -28,6 +31,10 @@ function App() {
               <Route path="/countries" element={<CountriesPage />} />
               <Route path="/cities" element={<CitiesPage />} />
               <Route path="/hotels" element={<HotelsPage />} />
+              <Route path="/transport" element={<TransportPage />} />
+              <Route path="/routes" element={<TransportRoutesPage />} />
+              <Route path="/users" element={<UsersPage />} />
+              
           </Route>
         </Routes>
       </div>

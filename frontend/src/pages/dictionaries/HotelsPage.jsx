@@ -209,7 +209,7 @@ const HotelsPage = () => {
                         <td className="fw-bold text-dark">{hotel.name}</td>
                         <td><span className="badge bg-white text-secondary border">{city ? city.name : hotel.cityId}</span></td>
                         <td><small className="text-secondary fw-bold">{countryName}</small></td>
-                        <td className="pe-4 text-end">
+                        <td className="pe-4 text-end text-nowrap">
                           <button 
                             className="btn btn-sm btn-link text-decoration-none fw-bold me-2"
                             style={{color: 'var(--st-blue)'}}

@@ -76,6 +76,22 @@ app.post("/auth/login", async (req, res) => {
   }
 });
 
+// UŻYTKOWNICY (Users)
+app.get("/users", async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+        include: { role: true, department: true }
+    });
+    const safeUsers = users.map(u => {
+        const { password, ...rest } = u;
+        return rest;
+    });
+    res.json(safeUsers);
+  } catch (error) {
+    res.status(500).json({ error: "Błąd pobierania użytkowników" });
+  }
+});
+
 // ==========================================
 // SEKCJA 2: SŁOWNIKI (CRUD) - TO CZEGO SZUKAŁEŚ
 // ==========================================
@@ -261,7 +277,132 @@ app.post("/transport-types", async (req, res) => {
   }
 });
 
-// --- 6. DELEGACJE (Trips) ---
+app.delete("/transport-types/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.transportType.delete({ where: { id: parseInt(id) } });
+    res.json({ message: "Typ transportu usunięty" });
+  } catch (error) {
+    res.status(500).json({ error: "Nie można usunąć typu. Może być używany." });
+  }
+});
+
+// --- 5a. DOSTAWCY TRANSPORTU (Transport Providers) ---
+app.get("/transport-providers", async (req, res) => {
+  const providers = await prisma.transportProvider.findMany({
+      include: { type: true }
+  });
+  res.json(providers);
+});
+
+app.post("/transport-providers", async (req, res) => {
+  try {
+    const { name, typeId } = req.body;
+    const newProvider = await prisma.transportProvider.create({ 
+        data: { 
+            name,
+            typeId: typeId ? parseInt(typeId) : null
+        } 
+    });
+    res.json(newProvider);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Błąd dodawania dostawcy transportu" });
+  }
+});
+
+app.put("/transport-providers/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, typeId } = req.body;
+    const updatedProvider = await prisma.transportProvider.update({
+      where: { id: parseInt(id) },
+      data: { 
+        name,
+        typeId: typeId ? parseInt(typeId) : null
+      }
+    });
+    res.json(updatedProvider);
+  } catch (error) {
+    res.status(500).json({ error: "Błąd edycji dostawcy" });
+  }
+});
+
+app.delete("/transport-providers/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.transportProvider.delete({ where: { id: parseInt(id) } });
+    res.json({ message: "Dostawca usunięty" });
+  } catch (error) {
+    res.status(500).json({ error: "Nie można usunąć dostawcy. Może być używany." });
+  }
+});
+
+// --- 6. TRASY TRANSPORTOWE (Transport Routes) ---
+app.get("/transport-routes", async (req, res) => {
+  try {
+    const routes = await prisma.transportRoute.findMany({
+      include: {
+        originCity: { include: { country: true } },
+        destinationCity: { include: { country: true } },
+        transportType: true,
+        provider: true
+      }
+    });
+    res.json(routes);
+  } catch (error) {
+    res.status(500).json({ error: "Błąd pobierania tras" });
+  }
+});
+
+app.post("/transport-routes", async (req, res) => {
+  try {
+    const { originCityId, destinationCityId, transportTypeId, providerId, price, currency } = req.body;
+    
+    // Walidacja: origin != destination
+    if (originCityId === destinationCityId) {
+      return res.status(400).json({ error: "Miasto początkowe i końcowe muszą być różne" });
+    }
+
+    const newRoute = await prisma.transportRoute.create({
+      data: {
+        originCityId: parseInt(originCityId),
+        destinationCityId: parseInt(destinationCityId),
+        transportTypeId: parseInt(transportTypeId),
+        providerId: parseInt(providerId),
+        price: parseFloat(price),
+        currency: currency || "PLN"
+      }
+    });
+    res.json(newRoute);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Błąd dodawania trasy", details: error.message });
+  }
+});
+
+// --- 7. USERS \/ ROLES ---
+
+app.patch("/users/:id/role", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { roleId } = req.body;
+    const updatedUser = await prisma.user.update({
+      where: { id: parseInt(id) },
+      data: { roleId: parseInt(roleId) }
+    });
+    res.json(updatedUser);
+  } catch (error) {
+    res.status(500).json({ error: "Błąd zmiany roli" });
+  }
+});
+
+app.get("/roles", async (req, res) => {
+  const roles = await prisma.role.findMany();
+  res.json(roles);
+});
+
+// --- 8. DELEGACJE (Trips) ---
 app.post("/trips", async (req, res) => {
   try {
     const { userId, destinationId, startDate, endDate, purpose, transportType, transportCost, hotelId, hotelCheckIn, hotelCheckOut } = req.body;

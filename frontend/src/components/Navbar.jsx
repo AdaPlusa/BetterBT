@@ -40,9 +40,7 @@ const Navbar = () => {
         <div className="collapse navbar-collapse justify-content-end" id="navbarNav">
           <ul className="navbar-nav align-items-center gap-3">
              {/* Linki ogólne */}
-             <li className="nav-item">
-               <Link className="nav-link" to="/">Pulpit</Link>
-             </li>
+            
              
              {/* Link dla Usera */}
              {!isAdmin && (
@@ -59,6 +57,10 @@ const Navbar = () => {
                  <li className="nav-item"><Link className="nav-link" to="/countries">Kraje</Link></li>
                  <li className="nav-item"><Link className="nav-link" to="/cities">Miasta</Link></li>
                  <li className="nav-item"><Link className="nav-link" to="/hotels">Hotele</Link></li>
+                 <li className="nav-item"><Link className="nav-link" to="/transport">Transport</Link></li>
+                 <li className="nav-item"><Link className="nav-link" to="/routes">Cennik Tras</Link></li>
+                 <li className="divider border-bottom my-2 mx-2"></li>
+                 <li className="nav-item"><Link className="nav-link fw-bold text-primary" to="/users">Użytkownicy</Link></li>
                </>
              )}
              
