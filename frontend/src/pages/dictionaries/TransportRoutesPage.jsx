@@ -57,6 +57,16 @@ const TransportRoutesPage = () => {
         fetchAllData();
     }, []);
 
+    // Force Warsaw as Origin when cities are loaded
+    useEffect(() => {
+        if (cities.length > 0) {
+            const warsaw = cities.find(c => c.name.toLowerCase() === 'warszawa');
+            if (warsaw) {
+                setFormData(prev => ({ ...prev, originCityId: warsaw.id }));
+            }
+        }
+    }, [cities]);
+
     // === 4. HELPER LOGIC ===
 
     // Get unique continents from cities
@@ -168,34 +178,25 @@ const TransportRoutesPage = () => {
                         <h4 className="fw-bold mb-3">Definiuj Trasę</h4>
                         <form onSubmit={handleSubmit}>
                             
-                            {/* SKĄD */}
+                            {/* SKĄD - LOCKED TO WARSZAWA */}
                             <div className="card bg-light border-0 p-3 mb-3">
                                 <h6 className="fw-bold text-muted mb-2 text-uppercase small">Skąd (Początek)</h6>
                                 <div className="row g-2">
                                     <div className="col-12">
-                                        <select className="form-select border-0" value={originContinent} onChange={e => handleOriginContinentChange(e.target.value)}>
-                                            <option value="">1. Kontynent</option>
-                                            {getContinents().map(c => <option key={c} value={c}>{c}</option>)}
-                                        </select>
+                                        <div className="input-group">
+                                            <span className="input-group-text border-0 bg-white text-success"><i className="bi bi-geo-fill"></i></span>
+                                            <input 
+                                                type="text" 
+                                                className="form-control border-0 bg-white fw-bold text-success" 
+                                                value="Warszawa (Polska)" 
+                                                readOnly 
+                                            />
+                                        </div>
+                                        <div className="form-text small mt-1">
+                                            Start trasy zawsze z Warszawy.
+                                        </div>
                                     </div>
-                                    <div className="col-12">
-                                        <select className="form-select border-0" value={originCountryId} onChange={e => handleOriginCountryChange(e.target.value)} disabled={!originContinent}>
-                                            <option value="">2. Kraj</option>
-                                            {getCountriesByContinent(originContinent).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className="col-12">
-                                        <select 
-                                            className="form-select border-0 fw-bold" 
-                                            required 
-                                            value={formData.originCityId} 
-                                            onChange={e => setFormData({...formData, originCityId: e.target.value})}
-                                            disabled={!originCountryId}
-                                        >
-                                            <option value="">3. Miasto (Wybierz)</option>
-                                            {getCitiesByCountry(originCountryId).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                        </select>
-                                    </div>
+                                    {/* Hidden selects to maintain logic if needed, but easier to just set state on load */}
                                 </div>
                             </div>
 

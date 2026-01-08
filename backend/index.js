@@ -14,7 +14,8 @@ const PORT = 3000;
 const JWT_SECRET = "bardzo_tajny_klucz_studenta_123";
 
 // Middleware
-app.use(express.json());
+// Middleware
+app.use(express.json({ limit: "50mb" }));
 app.use(cors());
 
 // 3. Endpointy TESTOWE
@@ -57,7 +58,10 @@ app.post("/auth/register", async (req, res) => {
 app.post("/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ 
+      where: { email },
+      include: { role: true }
+    });
     if (!user) {
       return res.status(400).json({ error: "Nieprawidłowy email lub hasło" });
     }
@@ -104,9 +108,14 @@ app.get("/countries", async (req, res) => {
 
 app.post("/countries", async (req, res) => {
   try {
-    const { name, code, continent } = req.body;
+    const { name, code, continent, perDiemRate } = req.body;
     const newCountry = await prisma.country.create({ 
-      data: { name, code, continent } 
+      data: { 
+          name, 
+          code, 
+          continent,
+          perDiemRate: perDiemRate ? parseFloat(perDiemRate) : 45
+      } 
     });
     res.json(newCountry);
   } catch (error) {
@@ -117,10 +126,15 @@ app.post("/countries", async (req, res) => {
 app.put("/countries/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, code, continent } = req.body;
+    const { name, code, continent, perDiemRate } = req.body;
     const updatedCountry = await prisma.country.update({
       where: { id: parseInt(id) },
-      data: { name, code, continent },
+      data: { 
+          name, 
+          code, 
+          continent,
+          perDiemRate: perDiemRate ? parseFloat(perDiemRate) : undefined
+      },
     });
     res.json(updatedCountry);
   } catch (error) {
@@ -159,10 +173,22 @@ app.post("/cities", async (req, res) => {
     });
     res.json(newCity);
   } catch (error) {
-    res.status(500).json({
-      error: "Błąd dodawania miasta. Sprawdź czy countryId istnieje!",
-    });
+    return res.status(500).json({ error: "Błąd dodawania miasta" });
   }
+});
+
+app.get("/cities/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const city = await prisma.city.findUnique({
+            where: { id: parseInt(id) },
+            include: { country: true }
+        });
+        if (!city) return res.status(404).json({ error: "Miasto nie znalezione" });
+        res.json(city);
+    } catch (error) {
+        res.status(500).json({ error: "Błąd pobierania miasta" });
+    }
 });
 
 app.put("/cities/:id", async (req, res) => {
@@ -214,15 +240,24 @@ app.post("/currencies", async (req, res) => {
 
 // --- 4. HOTELE (Hotels) ---
 app.get("/hotels", async (req, res) => {
-  const hotels = await prisma.hotel.findMany({ include: { city: true } });
+  const { cityId } = req.query;
+  const where = cityId ? { cityId: parseInt(cityId) } : {};
+  const hotels = await prisma.hotel.findMany({ 
+      where,
+      include: { city: true } 
+  });
   res.json(hotels);
 });
 
 app.post("/hotels", async (req, res) => {
   try {
-    const { name, cityId } = req.body;
+    const { name, cityId, imageUrl } = req.body;
     const newHotel = await prisma.hotel.create({
-      data: { name, cityId: parseInt(cityId) },
+      data: { 
+          name, 
+          cityId: parseInt(cityId),
+          imageUrl: imageUrl || null
+      },
     });
     res.json(newHotel);
   } catch (error) {
@@ -233,12 +268,13 @@ app.post("/hotels", async (req, res) => {
 app.put("/hotels/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, cityId } = req.body;
+    const { name, cityId, imageUrl } = req.body;
     const updatedHotel = await prisma.hotel.update({
       where: { id: parseInt(id) },
       data: { 
         name, 
-        cityId: parseInt(cityId) 
+        cityId: parseInt(cityId),
+        imageUrl: imageUrl || null
       },
     });
     res.json(updatedHotel);
@@ -405,7 +441,10 @@ app.get("/roles", async (req, res) => {
 // --- 8. DELEGACJE (Trips) ---
 app.post("/trips", async (req, res) => {
   try {
-    const { userId, destinationId, startDate, endDate, purpose, transportType, transportCost, hotelId, hotelCheckIn, hotelCheckOut } = req.body;
+    const { userId, destinationId, startDate, endDate, purpose, transportType, transportCost, transportProviderId, transportTypeId, hotelId, hotelCheckIn, hotelCheckOut, isInternational, estimatedCost } = req.body;
+
+    // Ustal typ delegacji (1=Krajowa, 2=Zagraniczna)
+    const tripTypeId = isInternational ? 2 : 1;
 
     // Prosta walidacja 
     const newTrip = await prisma.businessTrip.create({
@@ -416,18 +455,20 @@ app.post("/trips", async (req, res) => {
         endDate: new Date(endDate),
         purpose: purpose,
         statusId: 1, // Domyślnie: Nowa
-        typeId: 1,   // Domyślnie: Krajowa
-        // Opcjonalnie dodajemy transport jeśli wybrano
-        ...(transportType && {
+        typeId: tripTypeId,
+        
+        // Dodajemy transport TYLKO jeśli wybrano publiczny i mamy ID
+        ...(transportType === 'public' && transportProviderId && transportTypeId && {
             transports: {
                 create: {
-                    typeId: 1, // Domyślnie 1 (np. Pociąg) - uproszczenie dla MVP
-                    providerId: 1, // Domyślnie 1 (np. PKP)
+                    typeId: parseInt(transportTypeId), 
+                    providerId: parseInt(transportProviderId), 
                     cost: parseFloat(transportCost || 0)
                 }
             }
         }),
-        // Opcjonalnie dodajemy hotel jeśli wybrano
+
+    // Opcjonalnie dodajemy hotel jeśli wybrano
         ...(hotelId && {
             accommodations: {
                 create: {
@@ -436,7 +477,9 @@ app.post("/trips", async (req, res) => {
                     checkOut: new Date(hotelCheckOut || endDate)
                 }
             }
-        })
+        }),
+        // Nowe pole: Szacowany Koszt
+        estimatedCost: estimatedCost ? parseFloat(estimatedCost) : null
       }
     });
 
@@ -446,6 +489,86 @@ app.post("/trips", async (req, res) => {
     res.status(500).json({ error: "Błąd tworzenia delegacji", details: error.message });
   }
 });
+
+// GET /available-routes - Dla Wizarda (Krok 2)
+app.get("/available-routes", async (req, res) => {
+    try {
+        const { fromCityId, toCityId } = req.query;
+        // Allow querying by just one parameter for advanced filtering
+        if (!fromCityId && !toCityId) {
+            return res.status(400).json({ error: "Podaj fromCityId lub toCityId" });
+        }
+
+        const where = {};
+        if (fromCityId) where.originCityId = parseInt(fromCityId);
+        if (toCityId) where.destinationCityId = parseInt(toCityId);
+
+        const routes = await prisma.transportRoute.findMany({
+            where,
+            include: {
+                transportType: true,
+                provider: true
+            }
+        });
+        res.json(routes);
+    } catch (error) {
+        res.status(500).json({ error: "Błąd szukania tras" });
+    }
+});
+
+// --- MANAGER ENDPOINTS ---
+
+// GET /manager/pending-trips - Wnioski do akceptacji (statusId=1, inne niż moje)
+app.get("/manager/pending-trips", async (req, res) => {
+    try {
+        const { userId } = req.query; // ID managera, żeby nie widział swoich (opcjonalne)
+        const where = { statusId: 1 };
+        if (userId) {
+            where.userId = { not: parseInt(userId) };
+        }
+
+        const trips = await prisma.businessTrip.findMany({
+            where,
+            include: { user: true, destination: true, status: true }
+        });
+        res.json(trips);
+    } catch (error) {
+        res.status(500).json({ error: "Błąd pobierania wniosków" });
+    }
+});
+
+// PATCH /manager/approve/:id
+app.patch("/manager/approve/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const trip = await prisma.businessTrip.update({
+            where: { id: parseInt(id) },
+            data: { statusId: 2 } // 2 = Zatwierdzona (w seedzie statusów trzeba to sprawdzić, ale zakładamy 2)
+        });
+        res.json(trip);
+    } catch (error) {
+        res.status(500).json({ error: "Błąd zatwierdzania" });
+    }
+});
+
+// PATCH /manager/reject/:id
+app.patch("/manager/reject/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason } = req.body; // Pobierz powód z body
+        const trip = await prisma.businessTrip.update({
+            where: { id: parseInt(id) },
+            data: { 
+                statusId: 3, // 3 = Odrzucona
+                rejectionReason: reason || "Brak powodu"
+            } 
+        });
+        res.json(trip);
+    } catch (error) {
+        res.status(500).json({ error: "Błąd odrzucania" });
+    }
+});
+
 
 app.get("/trips", async (req, res) => {
     const { userId } = req.query;
@@ -458,6 +581,27 @@ app.get("/trips", async (req, res) => {
         res.json(trips);
     } catch (error) {
         res.status(500).json({ error: "Błąd pobierania delegacji" });
+    }
+});
+
+// GET /trips/:id - Szczegóły delegacji
+app.get("/trips/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const trip = await prisma.businessTrip.findUnique({
+            where: { id: parseInt(id) },
+            include: {
+                destination: true,
+                status: true,
+                user: true,
+                transports: { include: { type: true, provider: true } },
+                accommodations: { include: { hotel: true } }
+            }
+        });
+        if (!trip) return res.status(404).json({ error: "Trip not found" });
+        res.json(trip);
+    } catch (error) {
+        res.status(500).json({ error: "Błąd pobierania szczegółów" });
     }
 });
 

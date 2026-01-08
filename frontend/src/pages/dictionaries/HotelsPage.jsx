@@ -7,7 +7,7 @@ const HotelsPage = () => {
   const [cities, setCities] = useState([]);
   
   // Stan formularza
-  const [formData, setFormData] = useState({ name: '', cityId: '' });
+  const [formData, setFormData] = useState({ name: '', cityId: '', imageUrl: '' });
   const [selectedCountryId, setSelectedCountryId] = useState(''); // Do filtrowania miast w formularzu
   
   const [editingId, setEditingId] = useState(null);
@@ -60,7 +60,7 @@ const HotelsPage = () => {
         await api.post('/hotels', formData);
       }
       
-      setFormData({ name: '', cityId: '' });
+      setFormData({ name: '', cityId: '', imageUrl: '' });
       setSelectedCountryId('');
       setEditingId(null);
       setError(null);
@@ -80,13 +80,13 @@ const HotelsPage = () => {
       setSelectedCountryId(city.countryId);
     }
 
-    setFormData({ name: hotel.name, cityId: hotel.cityId });
+    setFormData({ name: hotel.name, cityId: hotel.cityId, imageUrl: hotel.imageUrl || '' });
     setEditingId(hotel.id);
     setError(null);
   };
 
   const handleCancelEdit = () => {
-    setFormData({ name: '', cityId: '' });
+    setFormData({ name: '', cityId: '', imageUrl: '' });
     setSelectedCountryId('');
     setEditingId(null);
     setError(null);
@@ -134,6 +134,35 @@ const HotelsPage = () => {
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
                   required
                 />
+              </div>
+
+              {/* Zdjęcie (Student Level) */}
+              {/* Wybór Pliku (Student Level - Base64) */}
+              <div className="mb-3">
+                <label className="form-label text-muted small fw-bold">Zdjęcie Hotelu</label>
+                <input 
+                  type="file" 
+                  className="form-control form-control-lg bg-light border-0" 
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                         setFormData({ ...formData, imageUrl: reader.result });
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+                <div className="form-text small">Wybierz zdjęcie z komputera (zostanie zapisane w bazie).</div>
+                
+                {/* Podgląd */}
+                {formData.imageUrl && (
+                    <div className="mt-2 text-center p-2 bg-light border rounded">
+                        <img src={formData.imageUrl} alt="Podgląd" style={{maxHeight: '150px', maxWidth: '100%'}} />
+                    </div>
+                )}
               </div>
 
               <div className="mb-3">

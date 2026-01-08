@@ -4,6 +4,7 @@ const Navbar = () => {
   // Pobieramy rolę z pamięci przeglądarki
   const roleId = localStorage.getItem('roleId'); 
   const isAdmin = roleId === '1';
+  const isManager = roleId === '3';
 
   const handleLogout = () => {
       localStorage.clear();
@@ -44,9 +45,14 @@ const Navbar = () => {
              
              {/* Link dla Usera */}
              {!isAdmin && (
-               <li className="nav-item">
-                 <Link className="nav-link" to="/trip-wizard">Nowa Delegacja</Link>
-               </li>
+               <>
+                 <li className="nav-item">
+                   <Link className="nav-link" to="/trip-wizard">Nowa Delegacja</Link>
+                 </li>
+                 <li className="nav-item">
+                   <Link className="nav-link" to="/my-trips">Moje Delegacje</Link>
+                 </li>
+               </>
              )}
   
              {/* Linki Admina */}
@@ -61,6 +67,17 @@ const Navbar = () => {
                  <li className="nav-item"><Link className="nav-link" to="/routes">Cennik Tras</Link></li>
                  <li className="divider border-bottom my-2 mx-2"></li>
                  <li className="nav-item"><Link className="nav-link fw-bold text-primary" to="/users">Użytkownicy</Link></li>
+               </>
+             )}
+
+             {/* Linki Managera */}
+             {isManager && (
+               <>
+                 <li className="nav-item">
+                   <Link className="nav-link fw-bold text-warning" to="/manager">
+                       <i className="bi bi-briefcase-fill me-1"></i> Panel Managera
+                   </Link>
+                 </li>
                </>
              )}
              

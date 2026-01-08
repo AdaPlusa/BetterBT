@@ -98,6 +98,7 @@ const RegisterPage = () => {
             >
                 <option value="2">Użytkownik (Pracownik)</option>
                 <option value="1">Administrator</option>
+                <option value="3">Manager</option>
             </select>
           </div>
           <button type="submit" className="btn btn-success w-100">Zarejestruj się</button>

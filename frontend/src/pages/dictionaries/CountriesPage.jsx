@@ -3,7 +3,7 @@ import api from '../../services/api';
 
 const CountriesPage = () => {
   const [countries, setCountries] = useState([]);
-  const [formData, setFormData] = useState({ name: '', code: '' });
+  const [formData, setFormData] = useState({ name: '', code: '', continent: '', perDiemRate: '' });
   const [editingId, setEditingId] = useState(null); // ID edytowanego elementu
   const [error, setError] = useState(null);
 
@@ -33,7 +33,7 @@ const CountriesPage = () => {
         await api.post('/countries', formData);
       }
       
-      setFormData({ name: '', code: '' }); // Reset formularza
+      setFormData({ name: '', code: '', continent: '', perDiemRate: '' }); // Reset formularza
       setEditingId(null); // Wyjście z trybu edycji
       setError(null);
       fetchCountries(); // Odśwież listę
@@ -44,7 +44,12 @@ const CountriesPage = () => {
   };
 
   const handleEdit = (country) => {
-    setFormData({ name: country.name, code: country.code });
+    setFormData({ 
+        name: country.name, 
+        code: country.code, 
+        continent: country.continent,
+        perDiemRate: country.perDiemRate || ''
+    });
     setEditingId(country.id);
     setError(null);
   };
@@ -124,6 +129,18 @@ const CountriesPage = () => {
                     ))}
                 </select>
               </div>
+
+              <div className="mb-4">
+                <label className="form-label text-muted small fw-bold">Stawka Diety (PLN)</label>
+                <input 
+                  type="number" 
+                  className="form-control form-control-lg bg-light border-0" 
+                  placeholder="np. 300" 
+                  value={formData.perDiemRate || ''}
+                  onChange={(e) => setFormData({...formData, perDiemRate: e.target.value})}
+                />
+                <div className="form-text small">Domyślnie 45 PLN (krajowa) lub 300 PLN (zagraniczna).</div>
+              </div>
               
               <div className="d-grid gap-2">
                 <button type="submit" className={`btn btn-lg ${editingId ? 'btn-primary' : 'btn-primary'}`}>
@@ -150,6 +167,7 @@ const CountriesPage = () => {
                     <th className="py-3 fw-bold text-uppercase small">Nazwa</th>
                     <th className="py-3 fw-bold text-uppercase small">Kod</th>
                     <th className="py-3 fw-bold text-uppercase small">Kontynent</th>
+                    <th className="py-3 fw-bold text-uppercase small">Dieta</th>
                     <th className="pe-4 py-3 text-end fw-bold text-uppercase small">Akcje</th>
                   </tr>
                 </thead>
@@ -160,6 +178,7 @@ const CountriesPage = () => {
                       <td className="fw-bold text-dark">{country.name}</td>
                       <td><span className="badge bg-light text-dark border">{country.code}</span></td>
                       <td className="text-secondary">{country.continent || '-'}</td>
+                      <td className="fw-bold text-primary">{country.perDiemRate ? `${country.perDiemRate} PLN` : '-'}</td>
                       <td className="pe-4 text-end">
                         <button 
                           className="btn btn-sm btn-link text-decoration-none fw-bold me-2" 

@@ -74,6 +74,8 @@ model BusinessTrip {
   transports     TransportBooking[]
   accommodations AccommodationBooking[]
   expenseReport  ExpenseReport?
+  estimatedCost  Decimal?
+  rejectionReason String?
 }
 
 model TripStatus {
@@ -99,16 +101,36 @@ model TransportBooking {
   cost        Decimal
 }
 
+
 model TransportProvider {
   id       Int                @id @default(autoincrement())
   name     String             // np. PKP, LOT, Uber
+  typeId   Int?               // Opcjonalne dla wstecznej kompatybilności, ale docelowo wymagane
+  type     TransportType?     @relation(fields: [typeId], references: [id])
   bookings TransportBooking[]
+  routes   TransportRoute[]   // Relacja do cennika
 }
 
 model TransportType {
   id       Int                @id @default(autoincrement())
   name     String             // np. Pociąg, Samolot
   bookings TransportBooking[]
+  providers TransportProvider[]
+  routes    TransportRoute[]
+}
+
+model TransportRoute {
+  id                Int             @id @default(autoincrement())
+  originCityId      Int
+  originCity        City            @relation("RouteOrigin", fields: [originCityId], references: [id])
+  destinationCityId Int
+  destinationCity   City            @relation("RouteDestination", fields: [destinationCityId], references: [id])
+  transportTypeId   Int
+  transportType     TransportType   @relation(fields: [transportTypeId], references: [id])
+  providerId        Int
+  provider          TransportProvider @relation(fields: [providerId], references: [id])
+  price             Decimal
+  currency          String          @default("PLN")
 }
 
 model AccommodationBooking {
@@ -124,6 +146,7 @@ model AccommodationBooking {
 model Hotel {
   id       Int                    @id @default(autoincrement())
   name     String
+  imageUrl String?                // Link do zdjęcia (student level)
   cityId   Int
   city     City                   @relation(fields: [cityId], references: [id])
   bookings AccommodationBooking[]
@@ -136,6 +159,7 @@ model Country {
   name      String
   code      String // np. PL, DE
   continent String? // np. Europa, Azja
+  perDiemRate Decimal @default(45) // Domyślnie 45 PLN
   cities    City[]
 }
 
@@ -146,6 +170,8 @@ model City {
   country   Country        @relation(fields: [countryId], references: [id])
   hotels    Hotel[]
   trips     BusinessTrip[]
+  originRoutes      TransportRoute[] @relation("RouteOrigin")
+  destinationRoutes TransportRoute[] @relation("RouteDestination")
 }
 
 model Currency {

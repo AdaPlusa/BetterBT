@@ -13,14 +13,22 @@ const TripWizardPage = () => {
     // Stan Główny - wszystkie dane delegacji
     const [formData, setFormData] = useState({
         destinationId: '',
+        originCityId: '', // Dodano
+        isInternational: false, // Dodano
         startDate: '',
         endDate: '',
         purpose: '',
         transportType: false,
-        transportCost: '', 
-        hotelId: '',
+        transportProviderId: null,
+        transportTypeId: null,
+        transportCost: 0, 
+        transportDetails: '',
+        hotelId: null,
+        hotelName: '', // Dodano dla wyświetlania w Step4?
+        hotelCost: 0,
         hotelCheckIn: '',
-        hotelCheckOut: ''
+        hotelCheckOut: '',
+        estimatedCost: 0 // Dodano
     });
 
     const handleChange = (e) => {
@@ -47,8 +55,8 @@ const TripWizardPage = () => {
             };
 
             await api.post('/trips', payload);
-            alert("Delegacja wysłana pomyślnie!");
-            navigate('/');
+            // Zamiast alertu i przekierowania, idź do kroku 5 (Sukces)
+            setStep(5);
         } catch (e) {
             console.error(e);
             alert("Wystąpił błąd podczas wysyłania wniosku.");
@@ -57,46 +65,71 @@ const TripWizardPage = () => {
 
     return (
         <div className="container mt-4">
-            <h2 className="text-center mb-4">Planowanie Delegacji</h2>
             
-            <div className="card shadow-lg">
-                <div className="card-header bg-primary text-white">
-                    Krok {step} z 4
+            {step < 5 && (
+                 <>
+                    <h2 className="text-center mb-4">Planowanie Delegacji</h2>
+                    <div className="card shadow-lg">
+                        <div className="card-header bg-primary text-white">
+                            Krok {step} z 4
+                        </div>
+                        <div className="card-body">
+                            {step === 1 && (
+                                <Step1_General 
+                                    formData={formData} 
+                                    handleChange={handleChange} 
+                                    nextStep={nextStep} 
+                                />
+                            )}
+                            {step === 2 && (
+                                <Step2_Transport 
+                                    formData={formData} 
+                                    setFormData={setFormData} // Podmieniono na setFormData
+                                    nextStep={nextStep} 
+                                    prevStep={prevStep}
+                                />
+                            )}
+                            {step === 3 && (
+                                <Step3_Hotel 
+                                    formData={formData}
+                                    setFormData={setFormData} // Podmieniono
+                                    handleChange={handleChange} 
+                                    nextStep={nextStep} 
+                                    prevStep={prevStep}
+                                />
+                            )}
+                            {step === 4 && (
+                                <Step4_Summary 
+                                    formData={formData} 
+                                    setFormData={setFormData} // Dodano
+                                    prevStep={prevStep} 
+                                    handleSubmit={handleSubmit} 
+                                />
+                            )}
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {step === 5 && (
+                <div className="text-center mt-5 pt-5">
+                    <div className="display-1 text-success mb-4">
+                        <i className="bi bi-check-circle-fill"></i>
+                    </div>
+                    <h2 className="mb-3 fw-bold">Gratulacje!</h2>
+                    <p className="lead mb-4">
+                        Twój wniosek został wysłany do Managera i oczekuje na akceptację.
+                    </p>
+                    <button 
+                        className="btn btn-primary btn-lg px-5 shadow" 
+                        onClick={() => navigate('/')}
+                    >
+                        Wróć do Pulpitu
+                    </button>
+                    {/* Confetti effect could go here */}
                 </div>
-                <div className="card-body">
-                    {step === 1 && (
-                        <Step1_General 
-                            formData={formData} 
-                            handleChange={handleChange} 
-                            nextStep={nextStep} 
-                        />
-                    )}
-                    {step === 2 && (
-                        <Step2_Transport 
-                            formData={formData} 
-                            handleChange={handleChange} 
-                            nextStep={nextStep} 
-                            prevStep={prevStep}
-                            setFormData={setFormData}
-                        />
-                    )}
-                    {step === 3 && (
-                        <Step3_Hotel 
-                            formData={formData} 
-                            handleChange={handleChange} 
-                            nextStep={nextStep} 
-                            prevStep={prevStep}
-                        />
-                    )}
-                    {step === 4 && (
-                        <Step4_Summary 
-                            formData={formData} 
-                            prevStep={prevStep} 
-                            handleSubmit={handleSubmit} 
-                        />
-                    )}
-                </div>
-            </div>
+            )}
+
         </div>
     );
 };

@@ -10,6 +10,9 @@ import TransportPage from './pages/dictionaries/TransportPage';
 import TransportRoutesPage from './pages/dictionaries/TransportRoutesPage';
 import UsersPage from './pages/admin/UsersPage';
 import TripWizardPage from './pages/TripWizardPage';
+import MyTripsPage from './pages/MyTripsPage';
+import TripDetailsPage from './pages/TripDetailsPage';
+import ManagerDashboardPage from './pages/ManagerDashboardPage';
 import ProtectedLayout from './components/ProtectedLayout';
 
 function App() {
@@ -26,6 +29,10 @@ function App() {
           <Route element={<ProtectedLayout />}>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/trip-wizard" element={<TripWizardPage />} />
+              <Route path="/my-trips" element={<MyTripsPage />} />
+              <Route path="/my-trips" element={<MyTripsPage />} />
+              <Route path="/trips/:id" element={<TripDetailsPage />} />
+              <Route path="/manager" element={<ManagerDashboardPage />} />
               
               {/* Słowniki */}
               <Route path="/countries" element={<CountriesPage />} />

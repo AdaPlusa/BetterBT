@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const API_URL = 'http://localhost:3000';
 const api = axios.create({ baseURL: API_URL });
 
 const DashboardPage = () => {
-    // === STAN DANYCH ===
+    const navigate = useNavigate();
     const [stats, setStats] = useState({
         usersCount: 0,
         activeTripsCount: 0,
@@ -14,71 +14,101 @@ const DashboardPage = () => {
         citiesCount: 0,
         hotelsCount: 0
     });
+    const [userStats, setUserStats] = useState({
+        pending: 0,
+        approved: 0,
+        rejected: 0
+    });
+    
     const [recentTrips, setRecentTrips] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [userName, setUserName] = useState('');
 
-    // === POBIERANIE DANYCH ===
     useEffect(() => {
-        const loadDashboardData = async () => {
+        const checkRoleAndLoadData = async () => {
+            const roleId = localStorage.getItem('roleId'); // Restoring this line
+            const userStr = localStorage.getItem('user');
+            let user = null;
+            let admin = false;
+
+            if (userStr) {
+                user = JSON.parse(userStr);
+                setUserName(user.firstName || 'Użytkowniku');
+            }
+
+            // Admin (1) lub Księgowy (4?) - umownie Księgowy też widzi Dashboard Admina
+            if (roleId === '1' || (user?.role?.name === 'Księgowy')) {
+                admin = true;
+                setIsAdmin(true);
+            } else if (roleId === '3') {
+                // Managera przekierowujemy, więc nie ładuj danych
+                return;
+            } else {
+                setIsAdmin(false);
+            }
+
             try {
-                // Używamy Promise.allSettled, żeby błąd jednego zapytania nie wysadził całego dashboardu
-                const results = await Promise.allSettled([
-                    api.get('/users'),
-                    api.get('/trips'),
-                    api.get('/cities'),
-                    api.get('/hotels')
-                ]);
+                if (admin) {
+                    // === DANE ADMINA ===
+                    const results = await Promise.allSettled([
+                        api.get('/users'),
+                        api.get('/trips'),
+                        api.get('/cities'),
+                        api.get('/hotels')
+                    ]);
 
-                // Wyniki: results[0] = users, results[1] = trips, itd.
-                const users = results[0].status === 'fulfilled' ? results[0].value.data : [];
-                const trips = results[1].status === 'fulfilled' ? results[1].value.data : [];
-                const cities = results[2].status === 'fulfilled' ? results[2].value.data : [];
-                const hotels = results[3].status === 'fulfilled' ? results[3].value.data : [];
+                    const users = results[0].status === 'fulfilled' ? results[0].value.data : [];
+                    const trips = results[1].status === 'fulfilled' ? results[1].value.data : [];
+                    const cities = results[2].status === 'fulfilled' ? results[2].value.data : [];
+                    const hotels = results[3].status === 'fulfilled' ? results[3].value.data : [];
 
-                if (results[0].status === 'rejected') console.error("Error fetching users:", results[0].reason);
-                if (results[1].status === 'rejected') console.error("Error fetching trips:", results[1].reason);
+                    // Statystyki
+                    const now = new Date();
+                    const activeTrips = trips.filter(t => {
+                        const statusOk = t.status?.name === 'Zatwierdzona'; // Status ID 2
+                        const start = new Date(t.startDate);
+                        const end = new Date(t.endDate);
+                        return statusOk && now >= start && now <= end;
+                    });
+                    const pendingTrips = trips.filter(t => t.statusId === 1); // Nowa
 
-                // --- OBLICZENIA STATYSTYK ---
-                const now = new Date();
+                    setStats({
+                        usersCount: users.length,
+                        activeTripsCount: activeTrips.length,
+                        pendingTripsCount: pendingTrips.length,
+                        citiesCount: cities.length,
+                        hotelsCount: hotels.length
+                    });
 
-                // 1. Aktywne Delegacje
-                const activeTrips = trips.filter(t => {
-                    const statusOk = t.status?.name === 'Zatwierdzona';
-                    const start = new Date(t.startDate);
-                    const end = new Date(t.endDate);
-                    return statusOk && now >= start && now <= end;
-                });
+                    // Ostatnie wnioski
+                    setRecentTrips([...trips].sort((a, b) => b.id - a.id).slice(0, 5));
 
-                // 2. Oczekujące
-                const pendingTrips = trips.filter(t => t.status?.name === 'Nowa');
+                } else {
+                    // === DANE PRACOWNIKA ===
+                    if (!user) return;
+                    const res = await api.get(`/trips?userId=${user.id}`);
+                    const myTrips = res.data || [];
 
-                setStats({
-                    usersCount: users.length,
-                    activeTripsCount: activeTrips.length,
-                    pendingTripsCount: pendingTrips.length,
-                    citiesCount: cities.length,
-                    hotelsCount: hotels.length
-                });
+                    const pending = myTrips.filter(t => t.statusId === 1).length;
+                    const approved = myTrips.filter(t => t.statusId === 2).length;
+                    const rejected = myTrips.filter(t => t.statusId === 3).length;
 
-                // --- TABELA ---
-                const sortedTrips = [...trips].sort((a, b) => b.id - a.id);
-                setRecentTrips(sortedTrips.slice(0, 5));
-
+                    setUserStats({ pending, approved, rejected });
+                    setRecentTrips([...myTrips].sort((a, b) => b.id - a.id).slice(0, 3));
+                }
             } catch (error) {
-                console.error("Critical dashboard error:", error);
+                console.error("Dashboard Load Error:", error);
             } finally {
                 setLoading(false);
             }
         };
 
-        loadDashboardData();
+        checkRoleAndLoadData();
     }, []);
 
-    const formatDate = (dateStr) => {
-        if(!dateStr) return '-';
-        return new Date(dateStr).toLocaleDateString('pl-PL');
-    };
-
+    const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString('pl-PL') : '-';
+    
     const getStatusBadge = (statusName) => {
         switch(statusName) {
             case 'Nowa': return 'warning text-dark';
@@ -89,107 +119,186 @@ const DashboardPage = () => {
         }
     };
 
-    if (loading) return <div className="p-5 text-center">Ładowanie pulpitu...</div>;
+    if (loading) return <div className="p-5 text-center">Ładowanie...</div>;
 
+    // --- WIDOK ADMINA ---
+    if (isAdmin) {
+        return (
+            <div className="container mt-4">
+                <h2 className="mb-4 text-primary fw-bold">Pulpit Administratora</h2>
+                <div className="row g-4 mb-5">
+                    <div className="col-md-6 col-xl-3">
+                        <div className="card border-0 shadow-sm h-100 border-start border-4 border-primary">
+                            <div className="card-body">
+                                <h6 className="text-secondary text-uppercase fw-bold small">Użytkownicy</h6>
+                                <h2 className="display-6 fw-bold text-dark my-2">{stats.usersCount}</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="col-md-6 col-xl-3">
+                        <div className="card border-0 shadow-sm h-100 border-start border-4 border-success">
+                            <div className="card-body">
+                                <h6 className="text-secondary text-uppercase fw-bold small">Aktywne Delegacje</h6>
+                                <h2 className="display-6 fw-bold text-dark my-2">{stats.activeTripsCount}</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="col-md-6 col-xl-3">
+                        <div className="card border-0 shadow-sm h-100 border-start border-4 border-warning">
+                            <div className="card-body">
+                                <h6 className="text-secondary text-uppercase fw-bold small">Oczekujące</h6>
+                                <h2 className="display-6 fw-bold text-dark my-2">{stats.pendingTripsCount}</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="col-md-6 col-xl-3">
+                        <div className="card border-0 shadow-sm h-100 border-start border-4 border-info">
+                            <div className="card-body">
+                                <h6 className="text-secondary text-uppercase fw-bold small">Baza Wiedzy</h6>
+                                <div className="d-flex align-items-baseline gap-2">
+                                    <h3 className="mb-0 fw-bold">{stats.citiesCount}</h3> <span className="text-muted small">Miast</span>
+                                    <h3 className="mb-0 fw-bold">{stats.hotelsCount}</h3> <span className="text-muted small">Hoteli</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="card border-0 shadow-sm">
+                    <div className="card-header bg-white py-3 border-0">
+                        <h5 className="mb-0 fw-bold text-secondary">Wszystkie Ostatnie Wnioski</h5>
+                    </div>
+                    <div className="table-responsive">
+                        <table className="table table-hover mb-0 align-middle">
+                            <thead className="bg-light text-secondary">
+                                <tr>
+                                    <th className="ps-4">Kto?</th>
+                                    <th>Gdzie?</th>
+                                    <th>Kiedy?</th>
+                                    <th className="text-end pe-4">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {recentTrips.map(trip => (
+                                    <tr key={trip.id}>
+                                        <td className="ps-4">
+                                            <div className="fw-bold">{trip.user?.firstName} {trip.user?.lastName}</div>
+                                            <small className="text-muted">{trip.user?.email}</small>
+                                        </td>
+                                        <td><span className="fw-bold text-primary">{trip.destination?.name}</span></td>
+                                        <td>{formatDate(trip.startDate)} - {formatDate(trip.endDate)}</td>
+                                        <td className="text-end pe-4">
+                                            <span className={`badge bg-${getStatusBadge(trip.status?.name)} rounded-pill px-3`}>{trip.status?.name}</span>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {recentTrips.length === 0 && <tr><td colSpan="4" className="text-center py-4">Brak danych</td></tr>}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // --- WIDOK PRACOWNIKA ---
     return (
         <div className="container mt-4">
-            <h2 className="mb-4 text-primary fw-bold">Pulpit Nawigacyjny</h2>
-
-            {/* STATYSTYKI */}
-            <div className="row g-4 mb-5">
-                <div className="col-md-6 col-xl-3">
-                    <div className="card border-0 shadow-sm h-100 border-start border-4 border-primary">
-                        <div className="card-body">
-                            <h6 className="text-secondary text-uppercase fw-bold small">Liczba Użytkowników</h6>
-                            <h2 className="display-6 fw-bold text-dark my-2">{stats.usersCount}</h2>
-                            <small className="text-muted">Pracowników w bazie</small>
-                        </div>
-                    </div>
+            <div className="mb-5 p-4 rounded-3 text-white shadow-sm d-flex align-items-center justify-content-between" 
+                 style={{ background: 'linear-gradient(135deg, #0072DE 0%, #00C6FB 100%)' }}>
+                <div>
+                    <h1 className="fw-bold mb-1">Cześć, {userName}! 👋</h1>
+                    <p className="mb-0 opacity-75">Gotowy na kolejną podróż?</p>
                 </div>
-
-                <div className="col-md-6 col-xl-3">
-                    <div className="card border-0 shadow-sm h-100 border-start border-4 border-success">
-                        <div className="card-body">
-                            <h6 className="text-secondary text-uppercase fw-bold small">Aktywne Delegacje</h6>
-                            <h2 className="display-6 fw-bold text-dark my-2">{stats.activeTripsCount}</h2>
-                            <small className="text-muted">Obecnie w podróży</small>
-                        </div>
-                    </div>
+                <div className="text-end d-none d-md-block">
+                    <span className="h1 fw-bold opacity-50"><i className="bi bi-airplane-engines"></i></span>
                 </div>
+            </div>
 
-                <div className="col-md-6 col-xl-3">
-                    <div className="card border-0 shadow-sm h-100 border-start border-4 border-warning">
-                        <div className="card-body">
-                            <h6 className="text-secondary text-uppercase fw-bold small">Oczekujące Wnioski</h6>
-                            <h2 className="display-6 fw-bold text-dark my-2">{stats.pendingTripsCount}</h2>
-                            <small className="text-muted">Wymaga akceptacji</small>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="col-md-6 col-xl-3">
-                    <div className="card border-0 shadow-sm h-100 border-start border-4 border-info">
-                        <div className="card-body">
-                            <h6 className="text-secondary text-uppercase fw-bold small">Baza Wiedzy</h6>
-                            <div className="d-flex align-items-baseline gap-2">
-                                <h3 className="mb-0 fw-bold">{stats.citiesCount}</h3> 
-                                <span className="text-muted small">Miast</span>
-                                <span className="text-muted mx-1">/</span>
-                                <h3 className="mb-0 fw-bold">{stats.hotelsCount}</h3>
-                                <span className="text-muted small">Hoteli</span>
+            {/* SEKCJA NA SKRÓTY */}
+            <h5 className="fw-bold text-secondary mb-3">Na Skróty</h5>
+            <div className="row g-3 mb-5">
+                <div className="col-md-6">
+                    <Link to="/trip-wizard" className="text-decoration-none">
+                        <div className="card border-0 shadow-sm p-3 h-100 text-center hover-scale" style={{transition: 'transform 0.2s'}}> 
+                            <div className="card-body">
+                                <div className="display-4 text-primary mb-3">+</div>
+                                <h4 className="fw-bold text-dark">Złóż Nowy Wniosek</h4>
+                                <small className="text-muted">Kreator krok po kroku</small>
                             </div>
+                        </div>
+                    </Link>
+                </div>
+                <div className="col-md-6">
+                    <div className="card border-0 shadow-sm p-3 h-100 text-center opacity-75" style={{background: '#f8f9fa'}}>
+                        <div className="card-body">
+                            <div className="display-4 text-secondary mb-3">€</div>
+                            <h4 className="fw-bold text-dark">Rozlicz Delegację</h4>
+                            <small className="text-muted">Wkrótce dostępne</small>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* TABELA - BEZ PRZYCISKU NOWY ETAP */}
+            {/* TWOJE STATUSY */}
+            <h5 className="fw-bold text-secondary mb-3">Twój Status</h5>
+            <div className="row g-3 mb-5">
+                <div className="col-4">
+                    <div className="card border-0 shadow-sm text-center py-3 border-top border-4 border-warning">
+                        <h3 className="fw-bold text-dark mb-0">{userStats.pending}</h3>
+                        <small className="text-uppercase text-secondary fw-bold" style={{fontSize: '0.7rem'}}>Oczekujące</small>
+                    </div>
+                </div>
+                <div className="col-4">
+                    <div className="card border-0 shadow-sm text-center py-3 border-top border-4 border-success">
+                        <h3 className="fw-bold text-dark mb-0">{userStats.approved}</h3>
+                        <small className="text-uppercase text-secondary fw-bold" style={{fontSize: '0.7rem'}}>Zatwierdzone</small>
+                    </div>
+                </div>
+                <div className="col-4">
+                    <div className="card border-0 shadow-sm text-center py-3 border-top border-4 border-danger">
+                        <h3 className="fw-bold text-dark mb-0">{userStats.rejected}</h3>
+                        <small className="text-uppercase text-secondary fw-bold" style={{fontSize: '0.7rem'}}>Odrzucone</small>
+                    </div>
+                </div>
+            </div>
+
+            {/* OSTATNIE AKTYWNOŚCI */}
             <div className="card border-0 shadow-sm">
-                <div className="card-header bg-white py-3 border-0">
-                    <h5 className="mb-0 fw-bold text-secondary">Ostatnie Wnioski</h5>
-                    {/* Przycisk usunięty zgodnie z życzeniem */}
+                <div className="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                    <h5 className="mb-0 fw-bold text-secondary">Twoje Ostatnie Wnioski</h5>
+                    <small className="text-primary fw-bold cursor-pointer">Zobacz wszystkie</small>
                 </div>
                 <div className="table-responsive">
-                    <table className="table table-hover mb-0 align-middle">
-                        <thead className="bg-light text-secondary">
+                    <table className="table mb-0 align-middle">
+                        <thead className="text-secondary bg-light small text-uppercase">
                             <tr>
-                                <th className="ps-4">Kto?</th>
-                                <th>Gdzie?</th>
-                                <th>Kiedy?</th>
-                                <th className="text-end pe-4">Status</th>
+                                <th className="ps-4 py-3">Cel & Kierunek</th>
+                                <th className="py-3">Data</th>
+                                <th className="text-end pe-4 py-3">Status</th>
                             </tr>
                         </thead>
                         <tbody>
                             {recentTrips.map(trip => (
                                 <tr key={trip.id}>
                                     <td className="ps-4">
-                                        <div className="fw-bold text-dark">
-                                            {trip.user?.firstName} {trip.user?.lastName}
-                                        </div>
-                                        <small className="text-muted">{trip.user?.email}</small>
+                                        <div className="fw-bold text-dark">{trip.destination?.name}</div>
+                                        <small className="text-muted">{trip.purpose}</small>
                                     </td>
                                     <td>
-                                        <div className="fw-bold text-primary">{trip.destination?.name}</div>
-                                        <small className="text-muted">Cel: {trip.purpose}</small>
-                                    </td>
-                                    <td>
-                                        <div className="text-dark">
-                                            {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
+                                        <div className="text-dark small fw-bold">
+                                            {formatDate(trip.startDate)}
                                         </div>
                                     </td>
                                     <td className="text-end pe-4">
-                                        <span className={`badge bg-${getStatusBadge(trip.status?.name)} rounded-pill px-3`}>
+                                        <span className={`badge bg-${getStatusBadge(trip.status?.name)} rounded-pill`}>
                                             {trip.status?.name}
                                         </span>
                                     </td>
                                 </tr>
                             ))}
                             {recentTrips.length === 0 && (
-                                <tr>
-                                    <td colSpan="4" className="text-center py-5 text-muted">
-                                        Brak wniosków w systemie.
-                                    </td>
-                                </tr>
+                                <tr><td colSpan="3" className="text-center py-4 text-muted">Jeszcze nie podróżowałeś!</td></tr>
                             )}
                         </tbody>
                     </table>
