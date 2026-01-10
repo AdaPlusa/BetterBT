@@ -44,7 +44,7 @@ const Navbar = () => {
             
              
              {/* Link dla Usera */}
-             {!isAdmin && (
+             {!isAdmin && !isManager && (
                <>
                  <li className="nav-item">
                    <Link className="nav-link" to="/trip-wizard">Nowa Delegacja</Link>
@@ -75,7 +75,17 @@ const Navbar = () => {
                <>
                  <li className="nav-item">
                    <Link className="nav-link fw-bold text-warning" to="/manager">
-                       <i className="bi bi-briefcase-fill me-1"></i> Panel Managera
+                       <i className="bi bi-speedometer2 me-1"></i> Dashboard
+                   </Link>
+                 </li>
+                 <li className="nav-item">
+                   <Link className="nav-link text-white-50" to="/manager/approvals">
+                       Do Akceptacji
+                   </Link>
+                 </li>
+                 <li className="nav-item">
+                   <Link className="nav-link text-white-50" to="/manager/settlements">
+                       Do Rozliczenia
                    </Link>
                  </li>
                </>

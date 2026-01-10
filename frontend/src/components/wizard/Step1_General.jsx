@@ -123,21 +123,7 @@ const Step1_General = ({ formData, handleChange, nextStep }) => {
                     />
                 </div>
 
-                <div className="col-12">
-                    <div className="form-check form-switch p-3 bg-light rounded border">
-                        <input 
-                            className="form-check-input ms-0 me-3" 
-                            type="checkbox" 
-                            name="isInternational" 
-                            checked={formData.isInternational || false} 
-                            onChange={handleChange} 
-                            style={{float: 'none', marginLeft: 0}}
-                        />
-                        <label className="form-check-label fw-bold">
-                            Delegacja Zagraniczna?
-                        </label>
-                    </div>
-                </div>
+                
             </div>
 
             <div className="d-flex justify-content-end mt-4">

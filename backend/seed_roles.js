@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Checking Roles...");
   
-  const roles = ["Admin", "User", "Manager", "Księgowy"];
+  const roles = ["Admin", "User", "Manager"];
   
   for (const name of roles) {
     const exists = await prisma.role.findFirst({ where: { name } });

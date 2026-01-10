@@ -146,7 +146,8 @@ model AccommodationBooking {
 model Hotel {
   id       Int                    @id @default(autoincrement())
   name     String
-  imageUrl String?                // Link do zdjęcia (student level)
+  imageUrl String?                // Link do zdjęcia
+  price    Decimal                @default(250) // Cena za noc
   cityId   Int
   city     City                   @relation(fields: [cityId], references: [id])
   bookings AccommodationBooking[]
@@ -222,6 +223,7 @@ model ExpenseItem {
   amount     Decimal
   date       DateTime
   description String?
+  payer      String?         // 'employer' or 'employee'
   receiptId  Int?            @unique
   receipt    Receipt?        @relation(fields: [receiptId], references: [id])
 }

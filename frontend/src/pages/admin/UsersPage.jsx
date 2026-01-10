@@ -6,9 +6,16 @@ const api = axios.create({ baseURL: API_URL });
 
 const UsersPage = () => {
     const [users, setUsers] = useState([]);
+    const [roles, setRoles] = useState([]);
+    
+    // Modal State
+    const [showModal, setShowModal] = useState(false);
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [newRoleId, setNewRoleId] = useState('');
 
     useEffect(() => {
         loadUsers();
+        loadRoles();
     }, []);
 
     const loadUsers = async () => {
@@ -20,14 +27,35 @@ const UsersPage = () => {
         }
     };
 
-    const handleChangeRole = async (userId, currentRoleId) => {
-        const newRoleId = window.prompt("Podaj nowe ID roli (1=Admin, 2=User, 3=Manager):", currentRoleId);
-        if (!newRoleId) return;
+    const loadRoles = async () => {
+        try {
+            const res = await api.get('/roles');
+            setRoles(res.data);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleOpenModal = (user) => {
+        setSelectedUser(user);
+        setNewRoleId(user.roleId);
+        setShowModal(true);
+    };
+
+    const handleCloseModal = () => {
+        setShowModal(false);
+        setSelectedUser(null);
+        setNewRoleId('');
+    };
+
+    const handleSaveRole = async () => {
+        if (!selectedUser || !newRoleId) return;
 
         try {
-            await api.patch(`/users/${userId}/role`, { roleId: newRoleId });
-            alert("Rola zmieniona!");
+            await api.patch(`/users/${selectedUser.id}/role`, { roleId: newRoleId });
+            handleCloseModal();
             loadUsers();
+            // Optional: Success toast
         } catch (err) {
             alert("Błąd zmiany roli");
         }
@@ -45,7 +73,6 @@ const UsersPage = () => {
                                 <th className="ps-4">Użytkownik</th>
                                 <th>Email</th>
                                 <th>Rola</th>
-                                <th>Dział</th>
                                 <th className="text-end pe-4">Akcja</th>
                             </tr>
                         </thead>
@@ -61,11 +88,10 @@ const UsersPage = () => {
                                             {u.role?.name || `ID: ${u.roleId}`}
                                         </span>
                                     </td>
-                                    <td>{u.department?.name || '-'}</td>
                                     <td className="text-end pe-4">
                                         <button 
                                             className="btn btn-sm btn-outline-secondary"
-                                            onClick={() => handleChangeRole(u.id, u.roleId)}
+                                            onClick={() => handleOpenModal(u)}
                                         >
                                             Zmień Rolę
                                         </button>
@@ -76,6 +102,57 @@ const UsersPage = () => {
                     </table>
                 </div>
             </div>
+
+            {/* MODAL */}
+            {showModal && (
+                <>
+                <div className="modal-backdrop fade show"></div>
+                <div className="modal fade show d-block" tabIndex="-1">
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content border-0 shadow-lg">
+                            <div className="modal-header border-0 pb-0">
+                                <h5 className="modal-title fw-bold text-primary">
+                                    Zmień Rolę
+                                </h5>
+                                <button type="button" className="btn-close" onClick={handleCloseModal}></button>
+                            </div>
+                            <div className="modal-body p-4">
+                                <p className="mb-2 text-muted small fw-bold">Użytkownik:</p>
+                                <h5 className="fw-bold mb-4">{selectedUser?.firstName} {selectedUser?.lastName}</h5>
+
+                                <div className="mb-3">
+                                    <label className="form-label text-muted small fw-bold">Wybierz nową rolę</label>
+                                    <select 
+                                        className="form-select form-select-lg bg-light border-0"
+                                        value={newRoleId}
+                                        onChange={(e) => setNewRoleId(e.target.value)}
+                                    >
+                                        {roles.map(role => (
+                                            <option key={role.id} value={role.id}>{role.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="d-grid gap-2 mt-4">
+                                    <button 
+                                        className="btn btn-primary btn-lg fw-bold"
+                                        onClick={handleSaveRole}
+                                    >
+                                        Zapisz Zmiany
+                                    </button>
+                                    <button 
+                                        className="btn btn-light text-muted"
+                                        onClick={handleCloseModal}
+                                    >
+                                        Anuluj
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </>
+            )}
         </div>
     );
 };

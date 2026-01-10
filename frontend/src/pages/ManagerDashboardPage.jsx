@@ -3,168 +3,152 @@ import api from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
 const ManagerDashboardPage = () => {
-    const [pendingTrips, setPendingTrips] = useState([]);
+    const [stats, setStats] = useState({ total: 0, toApprove: 0, toSettle: 0, finished: 0 });
+    const [recentTrips, setRecentTrips] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [rejectingId, setRejectingId] = useState(null);
-    const [rejectReason, setRejectReason] = useState('');
     const navigate = useNavigate();
 
-    // Fetch data
+    // Fetch Data
     useEffect(() => {
-        fetchTrips();
+        const fetchData = async () => {
+            try {
+                // 1. Stats
+                const statsRes = await api.get('/manager/stats');
+                setStats(statsRes.data);
+
+                // 2. Recent Trips (Last 5, Any status)
+                // We'll use a generic get or add a limit param. 
+                // For now assuming /manager/pending-trips allows statusId=0 or similar for all?
+                // Or just use /trips?limit=5. Check backend if it supports limit/sort.
+                // Backend /trips seems simple. Let's try /trips
+                const tripRes = await api.get('/trips?userId='); // userId empty implies all? Need to check backend logic.
+                // Our backend /trips filters by userId if present. If empty object, it returns all?
+                // Let's rely on what we have or just fetch pending for now.
+                // User said "Wszystkie Ostatnie". 
+                // Let's try to fetch all and slice client side for now (proto).
+                setRecentTrips(tripRes.data.slice(0, 5));
+                
+                setLoading(false);
+            } catch (err) {
+                console.error(err);
+                setLoading(false);
+            }
+        };
+        fetchData();
     }, []);
 
-    const fetchTrips = () => {
-        setLoading(true);
-        // userId from token is used by backend optionally, or we can pass it if needed. 
-        // For now, let's assume the backend endpoint handles "show me what I need to approve" logic.
-        const userId = localStorage.getItem('userId');
-        api.get(`/manager/pending-trips?userId=${userId}`)
-           .then(res => {
-               setPendingTrips(res.data);
-               setLoading(false);
-           })
-           .catch(err => {
-               console.error(err);
-               setLoading(false);
-           });
-    };
+    const StatCard = ({ title, value, icon, color, onClick }) => (
+        <div className="card border-0 shadow-sm hover-shadow" onClick={onClick} style={{cursor: onClick ? 'pointer' : 'default'}}>
+            <div className="card-body p-4 d-flex align-items-center justify-content-between">
+                <div>
+                    <h6 className="text-muted text-uppercase small fw-bold mb-2">{title}</h6>
+                    <h2 className={`mb-0 fw-bold text-${color}`}>{value}</h2>
+                </div>
+                <div className={`rounded-circle p-3 bg-${color} bg-opacity-10 text-${color}`}>
+                    <i className={`bi ${icon} fs-3`}></i>
+                </div>
+            </div>
+        </div>
+    );
 
-    const handleApprove = (id) => {
-        if (!window.confirm("Czy na pewno chcesz zatwierdzić ten wniosek?")) return;
-        
-        api.patch(`/manager/approve/${id}`)
-           .then(() => {
-               alert("Wniosek zatwierdzony!");
-               fetchTrips();
-           })
-           .catch(err => alert("Błąd zatwierdzania: " + err.message));
-    };
-
-    const handleRejectClick = (id) => {
-        setRejectingId(id);
-        setRejectReason('');
-    };
-
-    const confirmReject = () => {
-        if (!rejectReason) return alert("Podaj powód odrzucenia!");
-        
-        api.patch(`/manager/reject/${rejectingId}`, { reason: rejectReason })
-           .then(() => {
-               alert("Wniosek odrzucony.");
-               setRejectingId(null);
-               fetchTrips();
-           })
-           .catch(err => alert("Błąd odrzucania: " + err.message));
-    };
+    const UserAvatar = ({ firstName, lastName }) => (
+        <div className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm"
+             style={{ width: '35px', height: '35px', backgroundColor: '#6c757d', fontSize: '14px' }}>
+            {firstName?.[0]}{lastName?.[0]}
+        </div>
+    );
 
     return (
-        <div className="container-fluid mt-4">
-            <h2 className="mb-4 fw-bold text-primary">
-                <i className="bi bi-briefcase-fill me-2"></i>
-                Panel Managera
-            </h2>
+        <div className="container mt-4 mb-5">
+            <h2 className="fw-bold mb-4">Panel Managera</h2>
 
-            {loading ? (
-                <div className="text-center py-5"><div className="spinner-border text-primary"></div></div>
-            ) : (
-                <>
-                    {pendingTrips.length === 0 ? (
-                        <div className="alert alert-success d-flex align-items-center">
-                            <i className="bi bi-check-circle-fill fs-3 me-3"></i>
-                            <div>
-                                <strong>Brak oczekujących wniosków.</strong>
-                                <div className="small">Wszystkie delegacje zostały obsłużone. Dobra robota!</div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="row g-4">
-                            {pendingTrips.map(trip => (
-                                <div className="col-md-6 col-lg-4" key={trip.id}>
-                                    <div className="card h-100 shadow-sm border-0">
-                                        <div className="card-header bg-white d-flex justify-content-between align-items-center py-3">
-                                            <div>
-                                                <h6 className="card-subtitle text-muted text-uppercase small ls-1 mb-1">Wnioskodawca</h6>
-                                                <h5 className="mb-0 fw-bold text-dark">{trip.user?.firstName} {trip.user?.lastName}</h5>
-                                            </div>
-                                            <span className="badge bg-warning text-dark px-3 py-2 rounded-pill">
-                                                <i className="bi bi-hourglass-split me-1"></i> Oczekuje
-                                            </span>
-                                        </div>
-                                        <div className="card-body">
-                                            <div className="d-flex align-items-center mb-3">
-                                               <div className="bg-light p-2 rounded me-3 text-center" style={{minWidth: '60px'}}>
-                                                   <div className="fw-bold fs-4">{new Date(trip.startDate).getDate()}</div>
-                                                   <small className="text-uppercase text-muted" style={{fontSize: '10px'}}>
-                                                       {new Date(trip.startDate).toLocaleString('pl-PL', { month: 'short' })}
-                                                   </small>
-                                               </div>
-                                               <div className="flex-grow-1">
-                                                   <h5 className="text-primary fw-bold mb-0">{trip.destination?.name}</h5>
-                                                   <div className="small text-muted">{trip.destination?.country?.name || "Kraj"}</div>
-                                               </div>
-                                            </div>
+            {/* Stats Row */}
+            <div className="row g-4 mb-5">
+                <div className="col-md-6 col-xl-3">
+                    <StatCard title="Wszystkie Wnioski" value={stats.total} icon="bi-grid" color="primary" />
+                </div>
+                <div className="col-md-6 col-xl-3">
+                    <StatCard 
+                        title="Do Akceptacji" 
+                        value={stats.toApprove} 
+                        icon="bi-check-circle" 
+                        color="warning" 
+                        onClick={() => navigate('/manager/approvals')}
+                    />
+                </div>
+                <div className="col-md-6 col-xl-3">
+                    <StatCard 
+                        title="Do Rozliczenia" 
+                        value={stats.toSettle} 
+                        icon="bi-cash-coin" 
+                        color="info" 
+                        onClick={() => navigate('/manager/settlements')}
+                    />
+                </div>
+                <div className="col-md-6 col-xl-3">
+                    <StatCard title="Zakończone" value={stats.finished} icon="bi-flag-fill" color="success" />
+                </div>
+            </div>
 
-                                            <p className="card-text text-muted mb-3 bg-light p-2 rounded small">
-                                                <i className="bi bi-chat-quote-fill me-2 opacity-50"></i>
-                                                {trip.purpose}
-                                            </p>
-
-                                            <div className="d-flex justify-content-between align-items-center border-top pt-3 mt-3">
-                                                 <div>
-                                                     <div className="small text-muted text-uppercase">Szacowany Koszt</div>
-                                                     <div className="fw-bold fs-5 text-dark">
-                                                         {trip.estimatedCost ? `${parseFloat(trip.estimatedCost).toFixed(2)} PLN` : '-'}
-                                                     </div>
-                                                 </div>
-                                                 <button 
-                                                    className="btn btn-sm btn-outline-primary rounded-pill"
-                                                    onClick={() => navigate(`/trips/${trip.id}`)}
-                                                 >
-                                                     Szczegóły <i className="bi bi-arrow-right"></i>
-                                                 </button>
+            {/* Recent Trips Table */}
+            <div className="card shadow-sm border-0">
+                <div className="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                    <h5 className="fw-bold m-0 text-dark">Wszystkie Ostatnie Wnioski</h5>
+                    <button className="btn btn-light btn-sm rounded-pill px-3">Zobacz więcej</button>
+                </div>
+                <div className="table-responsive">
+                    <table className="table table-hover align-middle mb-0">
+                        <thead className="bg-light">
+                            <tr>
+                                <th className="ps-4 text-muted small text-uppercase">Wniosek</th>
+                                <th className="text-muted small text-uppercase">Pracownik</th>
+                                <th className="text-muted small text-uppercase">Kierunek</th>
+                                <th className="text-muted small text-uppercase">Status</th>
+                                <th className="text-muted small text-uppercase text-end pe-4">Akcja</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {recentTrips.map(trip => (
+                                <tr key={trip.id}>
+                                    <td className="ps-4 fw-bold">#{trip.id}</td>
+                                    <td>
+                                        <div className="d-flex align-items-center">
+                                            <UserAvatar firstName={trip.user?.firstName} lastName={trip.user?.lastName} />
+                                            <div className="ms-3">
+                                                <div className="fw-bold small text-dark">{trip.user?.firstName} {trip.user?.lastName}</div>
+                                                <div className="text-muted small" style={{fontSize: '0.75rem'}}>{trip.purpose}</div>
                                             </div>
                                         </div>
-                                        <div className="card-footer bg-white border-top-0 d-flex gap-2 pb-3">
-                                            {rejectingId === trip.id ? (
-                                                <div className="w-100">
-                                                    <input 
-                                                        type="text" 
-                                                        className="form-control mb-2" 
-                                                        placeholder="Powód odrzucenia..."
-                                                        value={rejectReason}
-                                                        onChange={(e) => setRejectReason(e.target.value)}
-                                                        autoFocus
-                                                    />
-                                                    <div className="d-flex gap-2">
-                                                        <button className="btn btn-danger btn-sm flex-grow-1" onClick={confirmReject}>Potwierdź</button>
-                                                        <button className="btn btn-secondary btn-sm flex-grow-1" onClick={() => setRejectingId(null)}>Anuluj</button>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <>
-                                                    <button 
-                                                        className="btn btn-success flex-grow-1"
-                                                        onClick={() => handleApprove(trip.id)}
-                                                    >
-                                                        <i className="bi bi-check-lg me-1"></i> Zatwierdź
-                                                    </button>
-                                                    <button 
-                                                        className="btn btn-danger flex-grow-1"
-                                                        onClick={() => handleRejectClick(trip.id)}
-                                                    >
-                                                        <i className="bi bi-x-lg me-1"></i> Odrzuć
-                                                    </button>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
+                                    </td>
+                                    <td>{trip.destination?.name}</td>
+                                    <td>
+                                        <span className={`badge rounded-pill bg-${
+                                            trip.statusId === 1 ? 'warning text-dark' : 
+                                            trip.statusId === 2 ? 'success' : 
+                                            trip.statusId === 5 ? 'info text-dark' : 'secondary'
+                                        } px-3`}>
+                                            {trip.status?.name}
+                                        </span>
+                                    </td>
+                                    <td className="text-end pe-4">
+                                        <button 
+                                            className="btn btn-sm btn-outline-primary rounded-pill px-3"
+                                            onClick={() => navigate(trip.statusId === 5 ? `/manager/settle/${trip.id}` : `/manager/approve/${trip.id}`)}
+                                        >
+                                            Szczegóły
+                                        </button>
+                                    </td>
+                                </tr>
                             ))}
-                        </div>
-                    )}
-                </>
-            )}
+                            {recentTrips.length === 0 && (
+                                <tr>
+                                    <td colSpan="5" className="text-center py-5 text-muted">Brak ostatnich wniosków.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     );
 };

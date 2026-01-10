@@ -417,6 +417,17 @@ app.post("/transport-routes", async (req, res) => {
   }
 });
 
+app.delete("/transport-routes/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        await prisma.transportRoute.delete({ where: { id: parseInt(id) } });
+        res.json({ message: "Trasa usunięta" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Błąd usuwania trasy" });
+    }
+});
+
 // --- 7. USERS \/ ROLES ---
 
 app.patch("/users/:id/role", async (req, res) => {
@@ -516,16 +527,186 @@ app.get("/available-routes", async (req, res) => {
     }
 });
 
-// --- MANAGER ENDPOINTS ---
+// POST /trips/:id/settlement - User wysyła rozliczenie
+app.post("/trips/:id/settlement", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { items, totalAmount } = req.body; 
+
+        // 1. Create/Update Expense Report
+        // Sprawdzamy czy już jest (np. przy poprawce)
+        const existingReport = await prisma.expenseReport.findUnique({ where: { tripId: parseInt(id) } });
+        
+        if (existingReport) {
+            // Update logic (simplified: delete items and recreate)
+            await prisma.expenseItem.deleteMany({ where: { reportId: existingReport.id } });
+            
+            // Re-create items logic is complex with async files, so we do it step by step
+            await prisma.expenseReport.update({
+                where: { id: existingReport.id },
+                data: {
+                    totalAmount: totalAmount,
+                    status: 'SUBMITTED' // Reset status if re-submitted
+                }
+            });
+
+            // Process items one by one to handle async file saves
+            for (const item of items) {
+                let receiptId = null;
+
+                if (item.fileData) {
+                    try {
+                        // Ensure uploads dir exists
+                        if (!fs.existsSync('uploads')) {
+                            fs.mkdirSync('uploads');
+                        }
+
+                        const matches = item.fileData.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+                        if (matches && matches.length === 3) {
+                            const type = matches[1];
+                            const buffer = Buffer.from(matches[2], 'base64');
+                            const extension = type.split('/')[1] || 'bin';
+                            const fileName = `receipt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${extension}`;
+                            
+                            fs.writeFileSync(`uploads/${fileName}`, buffer);
+
+                            const receipt = await prisma.receipt.create({
+                                data: {
+                                    fileName: fileName,
+                                    fileUrl: `/uploads/${fileName}`
+                                }
+                            });
+                            receiptId = receipt.id;
+                        }
+                    } catch (fileErr) {
+                        console.error("File upload error:", fileErr);
+                    }
+                }
+
+                await prisma.expenseItem.create({
+                    data: {
+                        reportId: existingReport.id,
+                        amount: parseFloat(item.amount),
+                        description: item.description,
+                        payer: item.payer || 'employee', // Default to employee if missing
+                        date: new Date(),
+                        categoryId: item.categoryId || 1,
+                        receiptId: receiptId
+                    }
+                });
+            }
+
+        } else {
+            // Create new Report
+            const report = await prisma.expenseReport.create({
+                data: {
+                    tripId: parseInt(id),
+                    totalAmount: totalAmount,
+                    status: 'SUBMITTED'
+                }
+            });
+
+            // Process items one by one
+            for (const item of items) {
+                let receiptId = null;
+
+                if (item.fileData) {
+                    try {
+                        if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
+
+                        const matches = item.fileData.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+                        if (matches && matches.length === 3) {
+                            const buffer = Buffer.from(matches[2], 'base64');
+                            const extension = matches[1].split('/')[1] || 'bin';
+                            const fileName = `receipt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${extension}`;
+                            
+                            fs.writeFileSync(`uploads/${fileName}`, buffer);
+
+                            const receipt = await prisma.receipt.create({
+                                data: {
+                                    fileName: fileName,
+                                    fileUrl: `/uploads/${fileName}`
+                                }
+                            });
+                            receiptId = receipt.id;
+                        }
+                    } catch (fileErr) {
+                        console.error("File upload error:", fileErr);
+                    }
+                }
+
+                await prisma.expenseItem.create({
+                    data: {
+                        reportId: report.id,
+                        amount: parseFloat(item.amount),
+                        description: item.description,
+                        payer: item.payer || 'employee',
+                        date: new Date(),
+                        categoryId: item.categoryId || 1,
+                        receiptId: receiptId
+                    }
+                });
+            }
+        }
+
+        // 2. Update Trip Status to 5 (Wysłana do rozliczenia)
+        const trip = await prisma.businessTrip.update({
+            where: { id: parseInt(id) },
+            data: { statusId: 5 }
+        });
+
+        res.json({ message: "Rozliczenie wysłane", trip });
+    } catch (error) {
+        console.error("SETTLEMENT ERROR:", error.message);
+        
+        try {
+            const fs = require('fs');
+            // Truncate long messages (e.g. base64) for logging
+            const safeErrorMessage = error.message.length > 500 ? error.message.substring(0, 500) + "...(truncated)" : error.message;
+            
+            const logMsg = `${new Date().toISOString()} - ${safeErrorMessage}\nCODE: ${error.code}\nSTACK: ${error.stack}\n\n`;
+            fs.appendFileSync('error.log', logMsg);
+        } catch (e) {
+            console.error("LOGGING ERROR:", e);
+        }
+
+        if (error.code) console.error("ERROR CODE:", error.code);
+        res.status(500).json({ error: "Błąd zapisywania rozliczenia: " + error.message.substring(0, 100) + "..." });
+    }
+});
+
+// GET /manager/stats - Statystyki dla Dashboardu
+app.get("/manager/stats", async (req, res) => {
+    try {
+        const { userId } = req.query;
+        // Logic: Managers see ALL trips (except maybe their own, but we disabled that restriction).
+        
+        const total = await prisma.businessTrip.count();
+        const toApprove = await prisma.businessTrip.count({ where: { statusId: 1 } });
+        const toSettle = await prisma.businessTrip.count({ where: { statusId: 5 } });
+        const finished = await prisma.businessTrip.count({ where: { statusId: { in: [3, 4] } } }); // Odrzucone or Rozliczone
+
+        res.json({ total, toApprove, toSettle, finished });
+    } catch (error) {
+        res.status(500).json({ error: "Błąd statystyk" });
+    }
+});
 
 // GET /manager/pending-trips - Wnioski do akceptacji (statusId=1, inne niż moje)
 app.get("/manager/pending-trips", async (req, res) => {
     try {
-        const { userId } = req.query; // ID managera, żeby nie widział swoich (opcjonalne)
-        const where = { statusId: 1 };
+        const { userId, statusId } = req.query; // ID managera, statu, który chcemy pobrać
+        
+        // Domyślnie statusId = 1 (Nowa), ale pozwalamy nadpisać
+        const targetStatus = statusId ? parseInt(statusId) : 1;
+        
+        const where = { statusId: targetStatus };
+        /* 
+        // Temporarily disabled to allow seeing all trips for testing
         if (userId) {
             where.userId = { not: parseInt(userId) };
-        }
+        } 
+        */
 
         const trips = await prisma.businessTrip.findMany({
             where,
@@ -569,39 +750,105 @@ app.patch("/manager/reject/:id", async (req, res) => {
     }
 });
 
-
-app.get("/trips", async (req, res) => {
-    const { userId } = req.query;
+// PATCH /manager/settle-finish/:id (Rozliczona - ID 4)
+app.patch("/manager/settle-finish/:id", async (req, res) => {
     try {
-        const where = userId ? { userId: parseInt(userId) } : {};
-        const trips = await prisma.businessTrip.findMany({
-            where,
-            include: { destination: true, status: true, user: true }
+        const { id } = req.params;
+        const trip = await prisma.businessTrip.update({
+            where: { id: parseInt(id) },
+            data: { statusId: 4 } 
         });
-        res.json(trips);
+        res.json(trip);
     } catch (error) {
-        res.status(500).json({ error: "Błąd pobierania delegacji" });
+        res.status(500).json({ error: "Błąd rozliczania" });
     }
 });
 
-// GET /trips/:id - Szczegóły delegacji
+// PATCH /manager/settle-return/:id (Do poprawki - ID 6)
+app.patch("/manager/settle-return/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const trip = await prisma.businessTrip.update({
+            where: { id: parseInt(id) },
+            data: { statusId: 6 } 
+        });
+        res.json(trip);
+    } catch (error) {
+        res.status(500).json({ error: "Błąd zwracania do poprawki" });
+    }
+});
+
+
+// GET /trips/:id - Szczegóły dla Managera i Usera
 app.get("/trips/:id", async (req, res) => {
     try {
         const { id } = req.params;
         const trip = await prisma.businessTrip.findUnique({
             where: { id: parseInt(id) },
             include: {
-                destination: true,
-                status: true,
                 user: true,
-                transports: { include: { type: true, provider: true } },
-                accommodations: { include: { hotel: true } }
+                destination: {
+                    include: { country: true } // Fetches Country Name !
+                },
+                status: true,
+                accommodations: {
+                    include: { hotel: true }
+                },
+                transports: {
+                    include: { provider: true }
+                },
+                expenseReport: {
+                    include: {
+                        items: {
+                            include: { receipt: true }
+                        }
+                    }
+                }
             }
         });
-        if (!trip) return res.status(404).json({ error: "Trip not found" });
-        res.json(trip);
+        if (!trip) return res.status(404).json({ error: "Nie znaleziono" });
+        
+        // Mapowanie struktur dla Frontendu
+        const tripResponse = { ...trip };
+        
+        if (trip.accommodations && trip.accommodations.length > 0) {
+            tripResponse.hotel = trip.accommodations[0].hotel;
+            // Now hotel has 'price' (decimal)
+        }
+        
+        if (trip.transports && trip.transports.length > 0) {
+            tripResponse.transportRoute = {
+                provider: trip.transports[0].provider,
+                price: trip.transports[0].cost, // Mapujemy koszt bookingu na 'price'
+                originCityId: 1 // Zakładamy Warszawę (hardcode, bo Booking nie ma info o trasie)
+            };
+        }
+
+        // Add settlement info if exists
+        if (trip.expenseReport) {
+            tripResponse.settlement = trip.expenseReport;
+        }
+
+        res.json(tripResponse);
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: "Błąd pobierania szczegółów" });
+    }
+});
+
+// GET /trips - Lista delegacji (opcjonalnie filtr ?userId=...)
+app.get("/trips", async (req, res) => {
+    const { userId } = req.query;
+    try {
+        const where = userId ? { userId: parseInt(userId) } : {};
+        const trips = await prisma.businessTrip.findMany({
+            where,
+            include: { destination: true, status: true, user: true },
+            orderBy: { id: 'desc' }
+        });
+        res.json(trips);
+    } catch (error) {
+        res.status(500).json({ error: "Błąd pobierania delegacji" });
     }
 });
 

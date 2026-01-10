@@ -12,7 +12,12 @@ import UsersPage from './pages/admin/UsersPage';
 import TripWizardPage from './pages/TripWizardPage';
 import MyTripsPage from './pages/MyTripsPage';
 import TripDetailsPage from './pages/TripDetailsPage';
+import SettlementPage from './pages/SettlementPage';
 import ManagerDashboardPage from './pages/ManagerDashboardPage';
+import ManagerTripDetailsPage from './pages/ManagerTripDetailsPage';
+
+import ManagerApprovalListPage from './pages/ManagerApprovalListPage';
+import ManagerSettlementListPage from './pages/ManagerSettlementListPage';
 import ProtectedLayout from './components/ProtectedLayout';
 
 function App() {
@@ -31,8 +36,13 @@ function App() {
               <Route path="/trip-wizard" element={<TripWizardPage />} />
               <Route path="/my-trips" element={<MyTripsPage />} />
               <Route path="/my-trips" element={<MyTripsPage />} />
+              <Route path="/settlement/:id" element={<SettlementPage />} />
               <Route path="/trips/:id" element={<TripDetailsPage />} />
               <Route path="/manager" element={<ManagerDashboardPage />} />
+              <Route path="/manager/approvals" element={<ManagerApprovalListPage />} />
+              <Route path="/manager/settlements" element={<ManagerSettlementListPage />} />
+              <Route path="/manager/approve/:id" element={<ManagerTripDetailsPage />} />
+              <Route path="/manager/settle/:id" element={<ManagerTripDetailsPage />} />
               
               {/* Słowniki */}
               <Route path="/countries" element={<CountriesPage />} />

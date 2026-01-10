@@ -3,10 +3,14 @@ import api from '../../services/api';
 
 const CitiesPage = () => {
   const [cities, setCities] = useState([]);
-  const [countries, setCountries] = useState([]); // Przechwujemy listę krajów do dropdownu
+  const [countries, setCountries] = useState([]); 
   const [formData, setFormData] = useState({ name: '', countryId: '' });
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState(null);
+  
+  // Modal & Sort
+  const [showModal, setShowModal] = useState(false);
+  const [sortOrder, setSortOrder] = useState('asc');
 
   useEffect(() => {
     fetchCities();
@@ -33,6 +37,25 @@ const CitiesPage = () => {
     }
   };
 
+  const handleOpenModal = (city = null) => {
+      setError(null);
+      if (city) {
+          setEditingId(city.id);
+          setFormData({ name: city.name, countryId: city.countryId });
+      } else {
+          setEditingId(null);
+          setFormData({ name: '', countryId: '' });
+      }
+      setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+      setShowModal(false);
+      setEditingId(null);
+      setFormData({ name: '', countryId: '' });
+      setError(null);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.countryId) {
@@ -47,29 +70,12 @@ const CitiesPage = () => {
         await api.post('/cities', formData);
       }
       
-      setFormData({ name: '', countryId: '' });
-      setEditingId(null);
-      setError(null);
+      handleCloseModal();
       fetchCities();
     } catch (err) {
       console.error(err);
       setError('Błąd zapisu miasta.');
     }
-  };
-
-  const handleEdit = (city) => {
-    setFormData({ 
-      name: city.name, 
-      countryId: city.countryId 
-    });
-    setEditingId(city.id);
-    setError(null);
-  };
-
-  const handleCancelEdit = () => {
-    setFormData({ name: '', countryId: '' });
-    setEditingId(null);
-    setError(null);
   };
 
   const handleDelete = async (id) => {
@@ -80,125 +86,141 @@ const CitiesPage = () => {
     } catch (err) {
       console.error(err);
       const msg = err.response?.data?.error || 'Błąd usuwania miasta.';
-      setError(msg);
+      alert(msg);
     }
   };
+
+  const handleSort = () => {
+    setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+  };
+
+  const sortedCities = [...cities].sort((a, b) => {
+    const nameA = a.name.toLowerCase();
+    const nameB = b.name.toLowerCase();
+    return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+  });
 
   return (
     <div className="container mt-5">
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>Miasta</h2>
+        <h2 className="text-primary fw-bold">Miasta</h2>
+        <button className="btn btn-primary fw-bold shadow-sm" onClick={() => handleOpenModal()}>
+            <i className="bi bi-plus-lg me-2"></i>Dodaj Miasto
+        </button>
       </div>
 
-      <div className="row">
-        {/* Formularz */}
-        <div className="col-lg-4 mb-4">
-          <div className="card p-4 h-100 border-0 shadow-sm">
-            <h5 className="mb-3 text-uppercase fw-bold text-secondary text-xs" style={{letterSpacing:'1px', fontSize:'0.75rem'}}>
-              {editingId ? "Edycja" : "Nowe Miasto"}
-            </h5>
-            <h3 className="mb-4 text-primary fw-bold">
-              {editingId ? "Edytuj Miasto" : "Dodaj Miasto"}
-            </h3>
-            
-            {error && <div className="alert alert-danger rounded-3 small">{error}</div>}
-            
-            <form onSubmit={handleSubmit}>
-              <div className="mb-3">
-                <label className="form-label text-muted small fw-bold">Nazwa Miasta</label>
-                <input 
-                  type="text" 
-                  className="form-control form-control-lg bg-light border-0" 
-                  placeholder="np. Szczecin" 
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="mb-4">
-                <label className="form-label text-muted small fw-bold">Wybierz Kraj</label>
-                <select 
-                  className="form-select form-select-lg bg-light border-0"
-                  value={formData.countryId}
-                  onChange={(e) => setFormData({...formData, countryId: e.target.value})}
-                  required
+      <div className="card border-0 shadow-sm overflow-hidden">
+        <div className="table-responsive">
+          <table className="table table-hover mb-0 align-middle">
+            <thead className="bg-light text-secondary">
+              <tr>
+                <th className="ps-4 py-3 fw-bold text-uppercase small" style={{width: '60px'}}>No</th>
+                <th 
+                    className="py-3 fw-bold text-uppercase small cursor-pointer"
+                    onClick={handleSort}
+                    style={{cursor: 'pointer'}}
                 >
-                  <option value="">-- Wybierz Kraj --</option>
-                  {countries.map(country => (
-                    <option key={country.id} value={country.id}>
-                      {country.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="d-grid gap-2">
-                <button type="submit" className="btn btn-primary btn-lg">
-                  {editingId ? 'Zapisz Zmiany' : 'Dodaj Miasto'}
-                </button>
-                {editingId && (
-                  <button type="button" className="btn btn-light text-muted" onClick={handleCancelEdit}>
-                    Anuluj
-                  </button>
-                )}
-              </div>
-            </form>
-          </div>
-        </div>
-
-        {/* Tabela */}
-        <div className="col-lg-8">
-          <div className="card border-0 shadow-sm overflow-hidden">
-            <div className="table-responsive">
-              <table className="table table-hover mb-0 align-middle">
-                <thead className="bg-light text-secondary">
-                  <tr>
-                    <th className="ps-4 py-3 fw-bold text-uppercase small" style={{width: '60px'}}>ID</th>
-                    <th className="py-3 fw-bold text-uppercase small">Nazwa</th>
-                    <th className="py-3 fw-bold text-uppercase small">Kraj</th>
-                    <th className="pe-4 py-3 text-end fw-bold text-uppercase small">Akcje</th>
-                  </tr>
-                </thead>
-                <tbody className="border-top-0">
-                  {cities.map((city) => (
-                    <tr key={city.id}>
-                      <td className="ps-4 fw-bold text-muted">#{city.id}</td>
-                      <td className="fw-bold text-dark">{city.name}</td>
-                      <td>
-                        <span className="badge bg-white text-secondary border">
-                          {city.country ? city.country.name : 'Brak danych'}
-                        </span>
-                      </td>
-                      <td className="pe-4 text-end">
-                        <button 
-                          className="btn btn-sm btn-link text-decoration-none fw-bold me-2"
-                          style={{color: 'var(--st-blue)'}}
-                          onClick={() => handleEdit(city)}
-                        >
-                          Edytuj
-                        </button>
-                        <button 
-                          className="btn btn-sm btn-link text-danger text-decoration-none fw-bold"
-                          onClick={() => handleDelete(city.id)}
-                        >
-                          Usuń
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                   {cities.length === 0 && (
-                    <tr>
-                      <td colSpan="4" className="text-center py-5 text-muted">
-                        Brak miast. Dodaj pierwsze!
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                    Nazwa
+                    {sortOrder === 'asc' ? <i className="bi bi-sort-alpha-down ms-1"></i> : <i className="bi bi-sort-alpha-up ms-1"></i>}
+                </th>
+                <th className="py-3 fw-bold text-uppercase small">Kraj</th>
+                <th className="pe-4 py-3 text-end fw-bold text-uppercase small">Akcje</th>
+              </tr>
+            </thead>
+            <tbody className="border-top-0">
+              {sortedCities.map((city, index) => (
+                <tr key={city.id}>
+                  <td className="ps-4 fw-bold text-muted">{index + 1}</td>
+                  <td className="fw-bold text-dark">{city.name}</td>
+                  <td>
+                    <span className="badge bg-white text-secondary border">
+                      {city.country ? city.country.name : 'Brak danych'}
+                    </span>
+                  </td>
+                  <td className="pe-4 text-end">
+                    <button 
+                      className="btn btn-sm btn-link text-decoration-none fw-bold me-2"
+                      style={{color: 'var(--st-blue)'}}
+                      onClick={() => handleOpenModal(city)}
+                    >
+                      <i className="bi bi-pencil me-1"></i>Edytuj
+                    </button>
+                    <button 
+                      className="btn btn-sm btn-link text-danger text-decoration-none fw-bold"
+                      onClick={() => handleDelete(city.id)}
+                    >
+                      <i className="bi bi-trash me-1"></i>Usuń
+                    </button>
+                  </td>
+                </tr>
+              ))}
+                {sortedCities.length === 0 && (
+                <tr>
+                  <td colSpan="4" className="text-center py-5 text-muted">
+                    Brak miast. Dodaj pierwsze!
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
+
+      {/* MODAL */}
+      {showModal && (
+        <>
+            <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                <div className="modal-dialog modal-dialog-centered">
+                    <div className="modal-content border-0 shadow-lg">
+                        <div className="modal-header border-0 pb-0">
+                            <h5 className="modal-title fw-bold text-primary">
+                                {editingId ? "Edytuj Miasto" : "Dodaj Miasto"}
+                            </h5>
+                            <button type="button" className="btn-close" onClick={handleCloseModal}></button>
+                        </div>
+                        <div className="modal-body p-4">
+                            {error && <div className="alert alert-danger rounded-3 small">{error}</div>}
+                            <form onSubmit={handleSubmit}>
+                                <div className="mb-3">
+                                    <label className="form-label text-muted small fw-bold">Nazwa Miasta</label>
+                                    <input 
+                                        type="text" 
+                                        className="form-control form-control-lg bg-light border-0" 
+                                        placeholder="np. Szczecin" 
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                        required
+                                    />
+                                </div>
+                                <div className="mb-4">
+                                    <label className="form-label text-muted small fw-bold">Wybierz Kraj</label>
+                                    <select 
+                                        className="form-select form-select-lg bg-light border-0"
+                                        value={formData.countryId}
+                                        onChange={(e) => setFormData({...formData, countryId: e.target.value})}
+                                        required
+                                    >
+                                        <option value="">-- Wybierz Kraj --</option>
+                                        {countries.map(country => (
+                                            <option key={country.id} value={country.id}>
+                                            {country.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                
+                                <div className="d-grid gap-2">
+                                    <button type="submit" className="btn btn-primary btn-lg">
+                                        {editingId ? 'Zapisz Zmiany' : 'Dodaj Miasto'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </>
+      )}
     </div>
   );
 };

@@ -93,7 +93,7 @@ const Step2_Transport = ({ formData, setFormData, nextStep, prevStep }) => {
                     ))}
 
                     {/* SAMOCHÓD SŁUŻBOWY */}
-                    <div className="col-md-6">
+                    {/* <div className="col-md-6">
                         <div 
                             className={`card h-100 cursor-pointer ${selectedRouteId === 'car' ? 'border-primary bg-light' : 'border-secondary'}`} 
                             onClick={handleSelectCar}
@@ -109,7 +109,7 @@ const Step2_Transport = ({ formData, setFormData, nextStep, prevStep }) => {
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </div> */}
                 </div>
             )}
 

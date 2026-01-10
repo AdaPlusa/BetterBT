@@ -24,10 +24,17 @@ const DashboardPage = () => {
     const [loading, setLoading] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
     const [userName, setUserName] = useState('');
+    const roleId = localStorage.getItem('roleId');
+
+    useEffect(() => {
+        if (roleId === '3') {
+            navigate('/manager');
+        }
+    }, [roleId, navigate]);
 
     useEffect(() => {
         const checkRoleAndLoadData = async () => {
-            const roleId = localStorage.getItem('roleId'); // Restoring this line
+             // roleId used from component scope
             const userStr = localStorage.getItem('user');
             let user = null;
             let admin = false;
@@ -42,7 +49,8 @@ const DashboardPage = () => {
                 admin = true;
                 setIsAdmin(true);
             } else if (roleId === '3') {
-                // Managera przekierowujemy, więc nie ładuj danych
+                // Managera przekierowujemy, ale wyłączamy loading by nie wisiało zanim przekieruje
+                setLoading(false); 
                 return;
             } else {
                 setIsAdmin(false);
@@ -63,20 +71,14 @@ const DashboardPage = () => {
                     const cities = results[2].status === 'fulfilled' ? results[2].value.data : [];
                     const hotels = results[3].status === 'fulfilled' ? results[3].value.data : [];
 
-                    // Statystyki
-                    const now = new Date();
-                    const activeTrips = trips.filter(t => {
-                        const statusOk = t.status?.name === 'Zatwierdzona'; // Status ID 2
-                        const start = new Date(t.startDate);
-                        const end = new Date(t.endDate);
-                        return statusOk && now >= start && now <= end;
-                    });
-                    const pendingTrips = trips.filter(t => t.statusId === 1); // Nowa
+                    // Statystyki wg życzenia Usera
+                    const activeTripsCount = trips.filter(t => t.statusId === 1).length; // Nowa (Active -> Nowa)
+                    const totalTripsCount = trips.length; // Wszystkie
 
                     setStats({
                         usersCount: users.length,
-                        activeTripsCount: activeTrips.length,
-                        pendingTripsCount: pendingTrips.length,
+                        activeTripsCount: activeTripsCount, 
+                        totalTripsCount: totalTripsCount, // Renamed from pendingTripsCount
                         citiesCount: cities.length,
                         hotelsCount: hotels.length
                     });
@@ -138,7 +140,7 @@ const DashboardPage = () => {
                     <div className="col-md-6 col-xl-3">
                         <div className="card border-0 shadow-sm h-100 border-start border-4 border-success">
                             <div className="card-body">
-                                <h6 className="text-secondary text-uppercase fw-bold small">Aktywne Delegacje</h6>
+                                <h6 className="text-secondary text-uppercase fw-bold small">Aktywne (Nowe)</h6>
                                 <h2 className="display-6 fw-bold text-dark my-2">{stats.activeTripsCount}</h2>
                             </div>
                         </div>
@@ -146,8 +148,8 @@ const DashboardPage = () => {
                     <div className="col-md-6 col-xl-3">
                         <div className="card border-0 shadow-sm h-100 border-start border-4 border-warning">
                             <div className="card-body">
-                                <h6 className="text-secondary text-uppercase fw-bold small">Oczekujące</h6>
-                                <h2 className="display-6 fw-bold text-dark my-2">{stats.pendingTripsCount}</h2>
+                                <h6 className="text-secondary text-uppercase fw-bold small">Wszystkie Delegacje</h6>
+                                <h2 className="display-6 fw-bold text-dark my-2">{stats.totalTripsCount}</h2>
                             </div>
                         </div>
                     </div>
@@ -166,7 +168,7 @@ const DashboardPage = () => {
 
                 <div className="card border-0 shadow-sm">
                     <div className="card-header bg-white py-3 border-0">
-                        <h5 className="mb-0 fw-bold text-secondary">Wszystkie Ostatnie Wnioski</h5>
+                        <h5 className="mb-0 fw-bold text-secondary">Ostatnie Wnioski</h5>
                     </div>
                     <div className="table-responsive">
                         <table className="table table-hover mb-0 align-middle">
@@ -230,13 +232,15 @@ const DashboardPage = () => {
                     </Link>
                 </div>
                 <div className="col-md-6">
-                    <div className="card border-0 shadow-sm p-3 h-100 text-center opacity-75" style={{background: '#f8f9fa'}}>
-                        <div className="card-body">
-                            <div className="display-4 text-secondary mb-3">€</div>
-                            <h4 className="fw-bold text-dark">Rozlicz Delegację</h4>
-                            <small className="text-muted">Wkrótce dostępne</small>
+                    <Link to="/my-trips?filter=settle" className="text-decoration-none">
+                        <div className="card border-0 shadow-sm p-3 h-100 text-center hover-scale" style={{transition: 'transform 0.2s', background: '#e8f5e9'}}>
+                            <div className="card-body">
+                                <div className="display-4 text-success mb-3">€</div>
+                                <h4 className="fw-bold text-dark">Rozlicz Delegację</h4>
+                                <small className="text-muted">Lista wniosków do rozliczenia</small>
+                            </div>
                         </div>
-                    </div>
+                    </Link>
                 </div>
             </div>
 
@@ -267,7 +271,7 @@ const DashboardPage = () => {
             <div className="card border-0 shadow-sm">
                 <div className="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
                     <h5 className="mb-0 fw-bold text-secondary">Twoje Ostatnie Wnioski</h5>
-                    <small className="text-primary fw-bold cursor-pointer">Zobacz wszystkie</small>
+                    <Link to="/my-trips?filter=all" className="text-decoration-none small text-primary fw-bold cursor-pointer">Zobacz wszystkie</Link>
                 </div>
                 <div className="table-responsive">
                     <table className="table mb-0 align-middle">

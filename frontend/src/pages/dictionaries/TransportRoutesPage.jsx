@@ -167,6 +167,18 @@ const TransportRoutesPage = () => {
         }
     };
 
+    const handleDelete = async (id) => {
+        if (!window.confirm("Czy na pewno chcesz usunąć tę trasę?")) return;
+        try {
+            await api.delete(`/transport-routes/${id}`);
+            const routesRes = await api.get('/transport-routes');
+            setRoutes(routesRes.data);
+        } catch (error) {
+            console.error(error);
+            alert("Błąd usuwania trasy.");
+        }
+    };
+
     return (
         <div className="container mt-5">
             <h2 className="mb-4 text-primary fw-bold">Cennik i Trasy</h2>
@@ -308,7 +320,8 @@ const TransportRoutesPage = () => {
                                     <tr>
                                         <th className="ps-4">Trasa</th>
                                         <th>Szczegóły</th>
-                                        <th className="text-end pe-4">Koszt</th>
+                                        <th className="text-end">Koszt</th>
+                                        <th className="text-end pe-4">Akcje</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -328,16 +341,25 @@ const TransportRoutesPage = () => {
                                                     {route.transportType?.name}
                                                 </span>
                                             </td>
-                                            <td className="text-end pe-4">
+                                            <td className="text-end">
                                                 <span className="fs-5 fw-bold text-success">
                                                     {route.price} <small className="fs-6 text-muted">{route.currency}</small>
                                                 </span>
+                                            </td>
+                                            <td className="text-end pe-4">
+                                                <button 
+                                                    className="btn btn-sm btn-link text-danger"
+                                                    onClick={() => handleDelete(route.id)}
+                                                    title="Usuń trasę"
+                                                >
+                                                    <i className="bi bi-trash"></i>
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}
                                     {routes.length === 0 && (
                                         <tr>
-                                            <td colSpan="3" className="text-center py-5 text-muted">
+                                            <td colSpan="4" className="text-center py-5 text-muted">
                                                 Brak tras. Użyj formularza aby dodać nowe połączenia.
                                             </td>
                                         </tr>
