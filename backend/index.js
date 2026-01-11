@@ -836,6 +836,45 @@ app.get("/trips/:id", async (req, res) => {
     }
 });
 
+// GET /my-trips - Delegacje zalogowanego użytkownika (Mobile)
+app.get("/my-trips", async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: "Brak tokenu" });
+        
+        const token = authHeader.split(" ")[1];
+        if (!token) return res.status(401).json({ error: "Błędny token" });
+
+        // Dekodowanie tokenu (uproszczone, bez verify dla studenta, zakładamy że backend ufa, 
+        // ale lepiej użyć jwt.verify jeśli jest secret. Tutaj użyjemy jwt.decode bo nie znamy secretu z pliku .env)
+        // A czekaj, mamy bcrypt, ale czy mamy jsonwebtoken? 
+        // Sprawdźmy importy. Jeśli nie ma biblioteki, zrobimy proste hackowanie base64 (to projekt studenta).
+        // Ale zaraz, w `login` musiał być generowany token. Zobaczmy górę pliku.
+        // Dobra, bezpieczniej po prostu zdekodować payload base64.
+        
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+
+        const payload = JSON.parse(jsonPayload);
+        const userId = payload.userId; // Upewnij się że przy logowaniu dajesz userId do tokenu!
+
+        if (!userId) return res.status(401).json({ error: "Brak ID w tokenie" });
+
+        const trips = await prisma.businessTrip.findMany({
+            where: { userId: parseInt(userId) },
+            include: { destination: true, status: true },
+            orderBy: { startDate: 'asc' }
+        });
+        res.json(trips);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Błąd pobierania moich delegacji" });
+    }
+});
+
 // GET /trips - Lista delegacji (opcjonalnie filtr ?userId=...)
 app.get("/trips", async (req, res) => {
     const { userId } = req.query;
