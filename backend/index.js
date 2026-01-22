@@ -1,31 +1,23 @@
-// index.js - Główny plik serwera Better BT (Wersja Kompletna Faza 1)
-
-// 1. Importujemy biblioteki
+// Imports
+const fs = require("fs");
 const express = require("express");
 const cors = require("cors");
 const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-// 2. Konfiguracja
+
 const app = express();
 const prisma = new PrismaClient();
 const PORT = 3000;
 const JWT_SECRET = "bardzo_tajny_klucz_studenta_123";
 
 // Middleware
-// Middleware
 app.use(express.json({ limit: "50mb" }));
 app.use(cors());
 
-// 3. Endpointy TESTOWE
-app.get("/", (req, res) => {
-  res.send("<h1>Serwer Better BT działa! 🚀</h1>");
-});
+app.get("/", (req, res) => res.send("<h1>Serwer Better BT działa! 🚀</h1>"));
 
-// ==========================================
-// SEKCJA 1: LOGOWANIE I REJESTRACJA (AUTH)
-// ==========================================
 
 // REJESTRACJA
 app.post("/auth/register", async (req, res) => {
@@ -97,8 +89,7 @@ app.get("/users", async (req, res) => {
 });
 
 // ==========================================
-// SEKCJA 2: SŁOWNIKI (CRUD) - TO CZEGO SZUKAŁEŚ
-// ==========================================
+// --- CRUD (Słowniki) ---
 
 // --- 1. KRAJE (Countries) ---
 app.get("/countries", async (req, res) => {
@@ -659,19 +650,8 @@ app.post("/trips/:id/settlement", async (req, res) => {
     } catch (error) {
         console.error("SETTLEMENT ERROR:", error.message);
         
-        try {
-            const fs = require('fs');
-            // Truncate long messages (e.g. base64) for logging
-            const safeErrorMessage = error.message.length > 500 ? error.message.substring(0, 500) + "...(truncated)" : error.message;
-            
-            const logMsg = `${new Date().toISOString()} - ${safeErrorMessage}\nCODE: ${error.code}\nSTACK: ${error.stack}\n\n`;
-            fs.appendFileSync('error.log', logMsg);
-        } catch (e) {
-            console.error("LOGGING ERROR:", e);
-        }
-
-        if (error.code) console.error("ERROR CODE:", error.code);
-        res.status(500).json({ error: "Błąd zapisywania rozliczenia: " + error.message.substring(0, 100) + "..." });
+        console.error("SETTLEMENT ERROR:", error);
+        res.status(500).json({ error: "Błąd zapisywania rozliczenia" });
     }
 });
 
@@ -684,9 +664,14 @@ app.get("/manager/stats", async (req, res) => {
         const total = await prisma.businessTrip.count();
         const toApprove = await prisma.businessTrip.count({ where: { statusId: 1 } });
         const toSettle = await prisma.businessTrip.count({ where: { statusId: 5 } });
-        const finished = await prisma.businessTrip.count({ where: { statusId: { in: [3, 4] } } }); // Odrzucone or Rozliczone
+        const finished = await prisma.businessTrip.count({ where: { statusId: { in: [3, 4] } } }); 
 
-        res.json({ total, toApprove, toSettle, finished });
+        // New counters for Admin Dashboard
+        const usersCount = await prisma.user.count();
+        const citiesCount = await prisma.city.count();
+        const hotelsCount = await prisma.hotel.count();
+
+        res.json({ total, toApprove, toSettle, finished, usersCount, citiesCount, hotelsCount });
     } catch (error) {
         res.status(500).json({ error: "Błąd statystyk" });
     }
@@ -701,12 +686,6 @@ app.get("/manager/pending-trips", async (req, res) => {
         const targetStatus = statusId ? parseInt(statusId) : 1;
         
         const where = { statusId: targetStatus };
-        /* 
-        // Temporarily disabled to allow seeing all trips for testing
-        if (userId) {
-            where.userId = { not: parseInt(userId) };
-        } 
-        */
 
         const trips = await prisma.businessTrip.findMany({
             where,
@@ -845,21 +824,9 @@ app.get("/my-trips", async (req, res) => {
         const token = authHeader.split(" ")[1];
         if (!token) return res.status(401).json({ error: "Błędny token" });
 
-        // Dekodowanie tokenu (uproszczone, bez verify dla studenta, zakładamy że backend ufa, 
-        // ale lepiej użyć jwt.verify jeśli jest secret. Tutaj użyjemy jwt.decode bo nie znamy secretu z pliku .env)
-        // A czekaj, mamy bcrypt, ale czy mamy jsonwebtoken? 
-        // Sprawdźmy importy. Jeśli nie ma biblioteki, zrobimy proste hackowanie base64 (to projekt studenta).
-        // Ale zaraz, w `login` musiał być generowany token. Zobaczmy górę pliku.
-        // Dobra, bezpieczniej po prostu zdekodować payload base64.
-        
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-
-        const payload = JSON.parse(jsonPayload);
-        const userId = payload.userId; // Upewnij się że przy logowaniu dajesz userId do tokenu!
+        // Używamy biblioteki jwt do weryfikacji i dekodowania
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const userId = decoded.userId;
 
         if (!userId) return res.status(401).json({ error: "Brak ID w tokenie" });
 
@@ -877,13 +844,16 @@ app.get("/my-trips", async (req, res) => {
 
 // GET /trips - Lista delegacji (opcjonalnie filtr ?userId=...)
 app.get("/trips", async (req, res) => {
-    const { userId } = req.query;
+    const { userId, limit } = req.query;
     try {
         const where = userId ? { userId: parseInt(userId) } : {};
+        const take = limit ? parseInt(limit) : undefined;
+        
         const trips = await prisma.businessTrip.findMany({
             where,
             include: { destination: true, status: true, user: true },
-            orderBy: { id: 'desc' }
+            orderBy: { id: 'desc' },
+            take: take
         });
         res.json(trips);
     } catch (error) {
@@ -891,9 +861,7 @@ app.get("/trips", async (req, res) => {
     }
 });
 
-// ==========================================
-// START SERWERA + AUTO-SEED
-// ==========================================
+// --- SERVER START & SEED ---
 
 app.listen(PORT, async () => {
   console.log(`
@@ -940,14 +908,102 @@ app.listen(PORT, async () => {
       console.log("✅ TransportTypes dodane");
     }
     
-    // 5. TransportProvider (Dostawcy)
-    if ((await prisma.transportProvider.count()) === 0) {
-        await prisma.transportProvider.createMany({
-          data: [{ name: "PKP" }, { name: "LOT" }, { name: "Uber" }],
-        });
-        console.log("✅ TransportProviders dodane");
-      }
+    // 5. TransportProvider (Rozszerzona lista)
+    // Update PKP -> PKP Intercity if exists
+    const pkpOld = await prisma.transportProvider.findFirst({ where: { name: "PKP" } });
+    if (pkpOld) {
+        await prisma.transportProvider.update({ where: { id: pkpOld.id }, data: { name: "PKP Intercity" } });
+        console.log("✅ Zaktualizowano nazwę dostawcy: PKP -> PKP Intercity");
+    }
+
+    const providerNames = ["PKP Intercity", "LOT", "Uber", "Lufthansa", "Emirates", "Ryanair", "Bolt", "DB (Deutsche Bahn)"];
+    for (const pName of providerNames) {
+        const exists = await prisma.transportProvider.findFirst({ where: { name: pName } });
+        if (!exists) {
+            await prisma.transportProvider.create({ data: { name: pName } });
+            console.log(`✅ Dodano dostawcę: ${pName}`);
+        }
+    }
+
+    // 6. SEED ROUTES (Trasy)
+    // Sprawdzamy czy mamy już jakieś trasy, jeśli mało to dodajemy
+    if ((await prisma.transportRoute.count()) < 15) { // Zwiększamy limit, żeby dodało nowe
+        console.log("⚠️ Mało tras w bazie. Dodaję bogatą siatkę połączeń...");
+        
+        // Słowniki
+        const waw = await prisma.city.findFirst({ where: { name: { contains: "Warszawa" } } });
+        const krk = await prisma.city.findFirst({ where: { name: { contains: "Kraków" } } });
+        const gdn = await prisma.city.findFirst({ where: { name: { contains: "Gdańsk" } } }); // Nowe
+        const lon = await prisma.city.findFirst({ where: { name: { contains: "Londyn" } } });
+        const par = await prisma.city.findFirst({ where: { name: { contains: "Paryż" } } });
+        const dub = await prisma.city.findFirst({ where: { name: { contains: "Dubaj" } } });
+        const ber = await prisma.city.findFirst({ where: { name: { contains: "Berlin" } } }); // Nowe
+
+        const typeTrain = await prisma.transportType.findFirst({ where: { name: "Pociąg" } });
+        const typePlane = await prisma.transportType.findFirst({ where: { name: "Samolot" } });
+        const typeCar = await prisma.transportType.findFirst({ where: { name: "Auto" } });
+
+        const pLot = await prisma.transportProvider.findFirst({ where: { name: "LOT" } });
+        const pPkp = await prisma.transportProvider.findFirst({ where: { name: "PKP Intercity" } });
+        const pUber = await prisma.transportProvider.findFirst({ where: { name: "Uber" } });
+        const pLuf = await prisma.transportProvider.findFirst({ where: { name: "Lufthansa" } });
+        const pRyan = await prisma.transportProvider.findFirst({ where: { name: "Ryanair" } });
+        const pEmir = await prisma.transportProvider.findFirst({ where: { name: "Emirates" } });
+        const pBolt = await prisma.transportProvider.findFirst({ where: { name: "Bolt" } });
+        const pDb = await prisma.transportProvider.findFirst({ where: { name: "DB (Deutsche Bahn)" } });
+
+        const newRoutes = [];
+
+        // --- TRASY KRAJOWE: WARSZAWA - KRAKÓW ---
+        if (waw && krk) {
+            if (pPkp && typeTrain) newRoutes.push({ originCityId: waw.id, destinationCityId: krk.id, transportTypeId: typeTrain.id, providerId: pPkp.id, price: 169, currency: "PLN" }); // Pendolino
+            if (pLot && typePlane) newRoutes.push({ originCityId: waw.id, destinationCityId: krk.id, transportTypeId: typePlane.id, providerId: pLot.id, price: 299, currency: "PLN" });
+            if (pUber && typeCar)  newRoutes.push({ originCityId: waw.id, destinationCityId: krk.id, transportTypeId: typeCar.id, providerId: pUber.id, price: 1100, currency: "PLN" });
+            if (pBolt && typeCar)  newRoutes.push({ originCityId: waw.id, destinationCityId: krk.id, transportTypeId: typeCar.id, providerId: pBolt.id, price: 1050, currency: "PLN" }); // Nowe
+        }
+
+        // --- TRASY KRAJOWE: WARSZAWA - GDAŃSK (Nowe) ---
+        if (waw && gdn) {
+            if (pPkp && typeTrain) newRoutes.push({ originCityId: waw.id, destinationCityId: gdn.id, transportTypeId: typeTrain.id, providerId: pPkp.id, price: 199, currency: "PLN" }); // Pendolino nad morze
+            if (pLot && typePlane) newRoutes.push({ originCityId: waw.id, destinationCityId: gdn.id, transportTypeId: typePlane.id, providerId: pLot.id, price: 350, currency: "PLN" });
+            if (pRyan && typePlane) newRoutes.push({ originCityId: waw.id, destinationCityId: gdn.id, transportTypeId: typePlane.id, providerId: pRyan.id, price: 99, currency: "PLN" }); // Tanie loty
+        }
+
+        // --- TRASY MIĘDZYNARODOWE: WARSZAWA - LONDYN ---
+        if (waw && lon && typePlane) {
+            if (pLot)  newRoutes.push({ originCityId: waw.id, destinationCityId: lon.id, transportTypeId: typePlane.id, providerId: pLot.id, price: 850, currency: "PLN" });
+            if (pRyan) newRoutes.push({ originCityId: waw.id, destinationCityId: lon.id, transportTypeId: typePlane.id, providerId: pRyan.id, price: 250, currency: "PLN" });
+            if (pLuf)  newRoutes.push({ originCityId: waw.id, destinationCityId: lon.id, transportTypeId: typePlane.id, providerId: pLuf.id, price: 920, currency: "PLN" });
+        }
+
+        // --- TRASY MIĘDZYNARODOWE: WARSZAWA - DUBAJ ---
+        if (waw && dub && typePlane) {
+            if (pEmir) newRoutes.push({ originCityId: waw.id, destinationCityId: dub.id, transportTypeId: typePlane.id, providerId: pEmir.id, price: 3200, currency: "PLN" });
+            if (pLot)  newRoutes.push({ originCityId: waw.id, destinationCityId: dub.id, transportTypeId: typePlane.id, providerId: pLot.id, price: 2400, currency: "PLN" });
+        }
+
+        // --- TRASY MIĘDZYNARODOWE: WARSZAWA - PARYŻ ---
+        if (waw && par && typePlane) {
+            if (pLot) newRoutes.push({ originCityId: waw.id, destinationCityId: par.id, transportTypeId: typePlane.id, providerId: pLot.id, price: 950, currency: "PLN" });
+            if (pLuf) newRoutes.push({ originCityId: waw.id, destinationCityId: par.id, transportTypeId: typePlane.id, providerId: pLuf.id, price: 1050, currency: "PLN" });
+        }
+
+        // --- TRASY MIĘDZYNARODOWE: WARSZAWA - BERLIN (Nowe) ---
+        if (waw && ber) {
+             if (pPkp && typeTrain) newRoutes.push({ originCityId: waw.id, destinationCityId: ber.id, transportTypeId: typeTrain.id, providerId: pPkp.id, price: 250, currency: "PLN" }); // Berlin-Warszawa-Express
+             if (pDb && typeTrain)  newRoutes.push({ originCityId: waw.id, destinationCityId: ber.id, transportTypeId: typeTrain.id, providerId: pDb.id, price: 280, currency: "PLN" }); // Deutsche Bahn
+             if (pLot && typePlane) newRoutes.push({ originCityId: waw.id, destinationCityId: ber.id, transportTypeId: typePlane.id, providerId: pLot.id, price: 600, currency: "PLN" });
+        }
+
+        if (newRoutes.length > 0) {
+            // Dodajemy tylko te, których jeszcze nie ma (uproszczone: po prostu createMany, ignorujemy duplikaty w logice "business" ale prisma createMany nie ma skipDuplicates dla sqlite/niektórych db, więc tu po prostu dodajemy)
+            // W środowisku dev to ok.
+            await prisma.transportRoute.createMany({ data: newRoutes });
+            console.log(`✅ Dodano ${newRoutes.length} nowych tras!`);
+        }
+    }
+
   } catch (e) {
-    console.log("Info: Baza danych gotowa.");
+    console.log("Info: Baza danych gotowa (seed check completed).", e);
   }
 });

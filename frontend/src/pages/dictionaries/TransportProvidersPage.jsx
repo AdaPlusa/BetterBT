@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNotification } from '../../context/NotificationContext';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 const API_URL = 'http://localhost:3000';
 const api = axios.create({ baseURL: API_URL });
@@ -11,6 +13,9 @@ const TransportProvidersPage = () => {
     // Form State
     const [name, setName] = useState('');
     const [typeId, setTypeId] = useState('');
+
+    const [confirmModal, setConfirmModal] = useState({ show: false, id: null });
+    const { notify } = useNotification();
 
     useEffect(() => {
         loadData();
@@ -25,7 +30,8 @@ const TransportProvidersPage = () => {
             setProviders(provRes.data);
             setTypes(typesRes.data);
         } catch (err) {
-            alert('Błąd pobierania danych');
+        } catch (err) {
+            notify('Błąd pobierania danych', 'error');
         }
     };
 
@@ -36,19 +42,25 @@ const TransportProvidersPage = () => {
             setName('');
             setTypeId('');
             loadData();
-            alert('Dodano przewoźnika!');
+            notify('Dodano przewoźnika!');
         } catch (err) {
-            alert('Błąd dodawania');
+            notify('Błąd dodawania', 'error');
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm("Usunąć?")) return;
+    const handleDeleteClick = (id) => {
+        setConfirmModal({ show: true, id });
+    };
+
+    const confirmDelete = async () => {
         try {
-            await api.delete(`/transport-providers/${id}`);
+            await api.delete(`/transport-providers/${confirmModal.id}`);
             loadData();
+            notify("Usunięto przewoźnika.");
         } catch (err) {
-            alert('Błąd usuwania (być może jest używany w trasach)');
+            notify('Błąd usuwania (być może jest używany w trasach)', 'error');
+        } finally {
+            setConfirmModal({ show: false, id: null });
         }
     };
 
@@ -118,7 +130,7 @@ const TransportProvidersPage = () => {
                                         <td className="text-end pe-4">
                                             <button 
                                                 className="btn btn-sm btn-outline-danger"
-                                                onClick={() => handleDelete(p.id)}
+                                                onClick={() => handleDeleteClick(p.id)}
                                             >
                                                 Usuń
                                             </button>
@@ -131,6 +143,15 @@ const TransportProvidersPage = () => {
                     </div>
                 </div>
             </div>
+
+            
+            <ConfirmModal 
+                show={confirmModal.show}
+                title="Usuń Przewoźnika"
+                message="Czy na pewno chcesz usunąć tego przewoźnika?"
+                onConfirm={confirmDelete}
+                onClose={() => setConfirmModal({ show: false, id: null })}
+            />
         </div>
     );
 };

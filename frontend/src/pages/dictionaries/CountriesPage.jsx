@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
+import { useNotification } from '../../context/NotificationContext';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 const CountriesPage = () => {
   const [countries, setCountries] = useState([]);
@@ -12,6 +14,10 @@ const CountriesPage = () => {
 
   // Sorting state
   const [sortOrder, setSortOrder] = useState('asc');
+
+  // Custom UI
+  const [confirmModal, setConfirmModal] = useState({ show: false, id: null });
+  const { notify } = useNotification();
 
   useEffect(() => {
     fetchCountries();
@@ -64,22 +70,29 @@ const CountriesPage = () => {
       
       handleCloseModal();
       fetchCountries();
+      notify(editingId ? "Kraj zaktualizowany!" : "Kraj dodany pomyślnie!");
     } catch (err) {
       console.error(err);
       setError('Błąd zapisu (sprawdź czy dane są poprawne).');
+      notify("Błąd zapisu.", "error");
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Czy na pewno chcesz usunąć ten kraj?")) return;
+  const handleDeleteClick = (id) => {
+    setConfirmModal({ show: true, id });
+  };
 
+  const confirmDelete = async () => {
     try {
-      await api.delete(`/countries/${id}`);
+      await api.delete(`/countries/${confirmModal.id}`);
       fetchCountries();
+      notify("Kraj usunięty.");
     } catch (err) {
       console.error(err);
       const msg = err.response?.data?.error || 'Błąd usuwania kraju.';
-      alert(msg); // Alert for delete error is better than setting modal error if modal is closed
+      notify(msg, "error");
+    } finally {
+        setConfirmModal({ show: false, id: null });
     }
   };
 
@@ -140,7 +153,7 @@ const CountriesPage = () => {
                     </button>
                     <button 
                       className="btn btn-sm btn-link text-danger text-decoration-none fw-bold"
-                      onClick={() => handleDelete(country.id)}
+                      onClick={() => handleDeleteClick(country.id)}
                     >
                       <i className="bi bi-trash me-1"></i>Usuń
                     </button>

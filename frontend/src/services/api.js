@@ -10,7 +10,7 @@ const api = axios.create({
 
 // Automatyczne dodawanie Tokena do każdego zapytania (Interceptor)
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

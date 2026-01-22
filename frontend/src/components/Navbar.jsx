@@ -2,12 +2,12 @@ import { Link } from 'react-router-dom';
 
 const Navbar = () => {
   // Pobieramy rolę z pamięci przeglądarki
-  const roleId = localStorage.getItem('roleId'); 
+  const roleId = sessionStorage.getItem('roleId'); 
   const isAdmin = roleId === '1';
   const isManager = roleId === '3';
 
   const handleLogout = () => {
-      localStorage.clear();
+      sessionStorage.clear();
       window.location.href = '/login';
   };
 
@@ -46,6 +46,7 @@ const Navbar = () => {
              {/* Link dla Usera */}
              {!isAdmin && !isManager && (
                <>
+               <li className="nav-item"><span className="nav-link text-white-50 text-uppercase small fw-bold">Użytkownik</span></li>
                  <li className="nav-item">
                    <Link className="nav-link" to="/trip-wizard">Nowa Delegacja</Link>
                  </li>
@@ -73,6 +74,7 @@ const Navbar = () => {
              {/* Linki Managera */}
              {isManager && (
                <>
+               <li className="nav-item"><span className="nav-link text-white-50 text-uppercase small fw-bold">Manager</span></li>
                  <li className="nav-item">
                    <Link className="nav-link fw-bold text-warning" to="/manager">
                        <i className="bi bi-speedometer2 me-1"></i> Dashboard

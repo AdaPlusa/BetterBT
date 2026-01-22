@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
+import { useNotification } from '../../context/NotificationContext';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 const HotelsPage = () => {
   const [hotels, setHotels] = useState([]);
@@ -13,12 +15,22 @@ const HotelsPage = () => {
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ show: false, id: null });
+  const { notify } = useNotification();
+
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchHotels();
-    fetchCountries();
-    fetchCities();
+    const loadData = async () => {
+        setLoading(true);
+        await Promise.all([fetchHotels(), fetchCountries(), fetchCities()]);
+        setLoading(false);
+    };
+    loadData();
   }, []);
+
+
+
 
   const fetchHotels = async () => {
     try {
@@ -90,9 +102,12 @@ const HotelsPage = () => {
       
       handleCloseModal();
       fetchHotels();
+      notify(editingId ? "Hotel zaktualizowany!" : "Hotel dodany pomyślnie!");
     } catch (err) {
       console.error(err);
+      // Keep error in modal for logic errors
       setError('Błąd zapisu hotelu.');
+      notify('Wystąpił błąd zapisu.', 'error');
     }
   };
 
@@ -117,17 +132,35 @@ const HotelsPage = () => {
     return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
   });
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Czy na pewno chcesz usunąć ten hotel?")) return;
+  const handleDeleteClick = (id) => {
+      setConfirmModal({ show: true, id });
+  };
+
+  const confirmDelete = async () => {
     try {
-      await api.delete(`/hotels/${id}`);
+      await api.delete(`/hotels/${confirmModal.id}`);
       fetchHotels();
+      notify("Hotel został usunięty.");
     } catch (err) {
         console.error(err);
         const msg = err.response?.data?.error || 'Błąd usuwania hotelu.';
-        alert(msg);
+        notify(msg, 'error');
+    } finally {
+        setConfirmModal({ show: false, id: null });
     }
   };
+
+  if (loading) {
+    return (
+        <div className="d-flex flex-column justify-content-center align-items-center" style={{minHeight: '60vh'}}>
+             <div className="spin-animation mb-3">
+                <i className="bi bi-airplane-engines text-primary" style={{fontSize: '4rem'}}></i>
+             </div>
+             <h4 className="fw-bold text-secondary">Już prawie...</h4>
+             <p className="text-muted small">ładowanie hoteli z całego świata!</p>
+        </div>
+    );
+  }
 
   return (
     <div className="container mt-5">
@@ -205,7 +238,7 @@ const HotelsPage = () => {
                       </button>
                       <button 
                         className="btn btn-sm btn-link text-danger text-decoration-none fw-bold"
-                        onClick={() => handleDelete(hotel.id)}
+                        onClick={() => handleDeleteClick(hotel.id)}
                       >
                         <i className="bi bi-trash me-1"></i>Usuń
                       </button>
@@ -323,6 +356,14 @@ const HotelsPage = () => {
         </div>
         </>
       )}
+
+      <ConfirmModal 
+        show={confirmModal.show}
+        title="Usuń Hotel"
+        message="Czy na pewno chcesz usunąć ten hotel? Tej operacji nie można cofnąć."
+        onConfirm={confirmDelete}
+        onClose={() => setConfirmModal({ show: false, id: null })}
+      />
     </div>
   );
 };

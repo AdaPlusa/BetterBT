@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
+import { useNotification } from '../../context/NotificationContext';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 const CitiesPage = () => {
   const [cities, setCities] = useState([]);
@@ -10,7 +12,9 @@ const CitiesPage = () => {
   
   // Modal & Sort
   const [showModal, setShowModal] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ show: false, id: null });
   const [sortOrder, setSortOrder] = useState('asc');
+  const { notify } = useNotification();
 
   useEffect(() => {
     fetchCities();
@@ -72,21 +76,29 @@ const CitiesPage = () => {
       
       handleCloseModal();
       fetchCities();
+      notify(editingId ? "Miasto zaktualizowane!" : "Miasto dodane pomyślnie!");
     } catch (err) {
       console.error(err);
       setError('Błąd zapisu miasta.');
+      notify('Wystąpił błąd zapisu.', 'error');
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Czy na pewno chcesz usunąć to miasto?")) return;
+  const handleDeleteClick = (id) => {
+      setConfirmModal({ show: true, id });
+  };
+
+  const confirmDelete = async () => {
     try {
-      await api.delete(`/cities/${id}`);
+      await api.delete(`/cities/${confirmModal.id}`);
       fetchCities();
+      notify("Miasto zostało usunięte.");
     } catch (err) {
       console.error(err);
       const msg = err.response?.data?.error || 'Błąd usuwania miasta.';
-      alert(msg);
+      notify(msg, 'error');
+    } finally {
+        setConfirmModal({ show: false, id: null });
     }
   };
 
@@ -147,7 +159,7 @@ const CitiesPage = () => {
                     </button>
                     <button 
                       className="btn btn-sm btn-link text-danger text-decoration-none fw-bold"
-                      onClick={() => handleDelete(city.id)}
+                      onClick={() => handleDeleteClick(city.id)}
                     >
                       <i className="bi bi-trash me-1"></i>Usuń
                     </button>
@@ -221,6 +233,14 @@ const CitiesPage = () => {
             </div>
         </>
       )}
+
+      <ConfirmModal 
+        show={confirmModal.show}
+        title="Usuń Miasto"
+        message="Czy na pewno chcesz usunąć to miasto? Tej operacji nie można cofnąć."
+        onConfirm={confirmDelete}
+        onClose={() => setConfirmModal({ show: false, id: null })}
+      />
     </div>
   );
 };

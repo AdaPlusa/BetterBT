@@ -1,18 +1,14 @@
-/* Import Font */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* SmartThings Colors */
   --st-blue: #0072DE;
   --st-dark-blue: #002F6C;
   --st-light-gray: #F7F9FC;
   --st-text-dark: #1B1B1B;
   --st-text-secondary: #6B7280;
   
-  /* Font */
   --st-font-family: 'Poppins', sans-serif;
   
-  /* Base Settings */
   font-family: var(--st-font-family);
   line-height: 1.5;
   font-weight: 400;
@@ -31,27 +27,22 @@ body {
   color: var(--st-text-dark);
 }
 
-/* --- Global Utilities (Overrides) --- */
-
-/* Card Styling */
 .card {
   border: none !important;
   border-radius: 12px !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Soft shadow */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); 
   background-color: white;
   transition: transform 0.2s ease-in-out;
 }
 
 
-/* Headers */
 h2, h4 {
   color: var(--st-dark-blue);
   font-weight: 600;
 }
 
-/* Buttons */
 .btn {
-  border-radius: 50px !important; /* Pill shape */
+  border-radius: 50px !important; 
   padding: 8px 24px !important;
   font-weight: 500;
   letter-spacing: 0.5px;
@@ -77,14 +68,12 @@ h2, h4 {
   color: white !important;
 }
 
-/* Table Styling */
 .table {
   background-color: white;
   border-radius: 12px;
-  overflow: hidden; /* For rounded corners on the table */
+  overflow: hidden; 
 }
 
-/* Header tabeli na czysto (bez czarnego t≈Ça) albo na kolor firmowy */
 .table thead {
   background-color: var(--st-blue); 
   color: white;
@@ -94,7 +83,6 @@ h2, h4 {
   background-color: #f1f7ff;
 }
 
-/* Navbar overrides if needed */
 .navbar-custom {
   background-color: var(--st-dark-blue) !important;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
@@ -104,3 +92,15 @@ a {
   text-decoration: none;
   color: inherit;
 }
+
+/* Animacja ≥adowania */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin-animation {
+  animation: spin 2s linear infinite;
+  display: inline-block;
+}
+

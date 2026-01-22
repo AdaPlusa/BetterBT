@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNotification } from '../../context/NotificationContext';
 
 const API_URL = 'http://localhost:3000';
 const api = axios.create({ baseURL: API_URL });
@@ -7,6 +8,7 @@ const api = axios.create({ baseURL: API_URL });
 const UsersPage = () => {
     const [users, setUsers] = useState([]);
     const [roles, setRoles] = useState([]);
+    const { notify } = useNotification();
     
     // Modal State
     const [showModal, setShowModal] = useState(false);
@@ -55,9 +57,9 @@ const UsersPage = () => {
             await api.patch(`/users/${selectedUser.id}/role`, { roleId: newRoleId });
             handleCloseModal();
             loadUsers();
-            // Optional: Success toast
+            notify("Rola została zmieniona.");
         } catch (err) {
-            alert("Błąd zmiany roli");
+            notify("Błąd zmiany roli", "error");
         }
     };
 

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNotification } from '../../context/NotificationContext';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 const API_URL = 'http://localhost:3000';
 const api = axios.create({ baseURL: API_URL });
@@ -31,6 +33,10 @@ const TransportRoutesPage = () => {
         currency: 'PLN'
     });
 
+    // Custom UI
+    const [confirmModal, setConfirmModal] = useState({ show: false, id: null });
+    const { notify } = useNotification();
+
     // === 3. FETCHING DATA ===
     const fetchAllData = async () => {
         try {
@@ -49,7 +55,7 @@ const TransportRoutesPage = () => {
             setRoutes(routesRes.data);
         } catch (error) {
             console.error("Błąd pobierania danych:", error);
-            alert("Nie udało się pobrać danych.");
+            notify("Nie udało się pobrać danych.", "error");
         }
     };
 
@@ -142,17 +148,17 @@ const TransportRoutesPage = () => {
         e.preventDefault();
         
         if (formData.originCityId === formData.destinationCityId) {
-            alert("Miasto początkowe i końcowe muszą być różne!");
+            notify("Miasto początkowe i końcowe muszą być różne!", "error");
             return;
         }
         if (Number(formData.price) < 0) {
-            alert("Cena nie może być ujemna!");
+            notify("Cena nie może być ujemna!", "error");
             return;
         }
 
         try {
             await api.post('/transport-routes', formData);
-            alert("Trasa dodana pomyślnie!");
+            notify("Trasa dodana pomyślnie!");
             
             // Fetch updated routes
             const routesRes = await api.get('/transport-routes');
@@ -163,19 +169,25 @@ const TransportRoutesPage = () => {
 
         } catch (error) {
             console.error(error);
-            alert("Błąd dodawania trasy.");
+            notify("Błąd dodawania trasy.", "error");
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm("Czy na pewno chcesz usunąć tę trasę?")) return;
+    const handleDeleteClick = (id) => {
+        setConfirmModal({ show: true, id });
+    };
+
+    const confirmDelete = async () => {
         try {
-            await api.delete(`/transport-routes/${id}`);
+            await api.delete(`/transport-routes/${confirmModal.id}`);
             const routesRes = await api.get('/transport-routes');
             setRoutes(routesRes.data);
+            notify("Trasa usunięta.");
         } catch (error) {
             console.error(error);
-            alert("Błąd usuwania trasy.");
+            notify("Błąd usuwania trasy.", "error");
+        } finally {
+            setConfirmModal({ show: false, id: null });
         }
     };
 
@@ -349,7 +361,7 @@ const TransportRoutesPage = () => {
                                             <td className="text-end pe-4">
                                                 <button 
                                                     className="btn btn-sm btn-link text-danger"
-                                                    onClick={() => handleDelete(route.id)}
+                                                    onClick={() => handleDeleteClick(route.id)}
                                                     title="Usuń trasę"
                                                 >
                                                     <i className="bi bi-trash"></i>
@@ -370,6 +382,15 @@ const TransportRoutesPage = () => {
                     </div>
                 </div>
             </div>
+
+
+            <ConfirmModal 
+                show={confirmModal.show}
+                title="Usuń Trasę"
+                message="Czy na pewno chcesz usunąć to połączenie?"
+                onConfirm={confirmDelete}
+                onClose={() => setConfirmModal({ show: false, id: null })}
+            />
         </div>
     );
 };

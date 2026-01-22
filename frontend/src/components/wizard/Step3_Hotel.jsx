@@ -66,31 +66,46 @@ const Step3_Hotel = ({ formData, handleChange, nextStep, prevStep, setFormData }
                 {!loading && hotels.map(hotel => (
                     <div className="col-md-4" key={hotel.id}>
                         <div 
-                            className={`card h-100 cursor-pointer ${selectedHotelId === hotel.id ? 'border-primary bg-light' : ''}`}
+                            className={`card h-100 overflow-hidden ${selectedHotelId === hotel.id ? 'border-primary shadow' : ''}`}
                             onClick={() => handleSelectHotel(hotel)}
-                            style={{cursor: 'pointer', borderWidth: selectedHotelId === hotel.id ? '2px' : '1px'}}
+                            style={{cursor: 'pointer', borderWidth: selectedHotelId === hotel.id ? '3px' : '1px', transition: 'all 0.2s'}}
                         >
-                            {/* Obrazek hotelu (placeholder) */}
-                            <div style={{height: '150px', background: '#eee', overflow: 'hidden'}} className="card-img-top d-flex align-items-center justify-content-center text-secondary position-relative">
+                            {/* Obrazek hotelu */}
+                            <div style={{height: '180px'}} className="position-relative bg-light">
                                 {hotel.imageUrl ? (
                                     <img src={hotel.imageUrl} alt={hotel.name} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
                                 ) : (
-                                    <i className="bi bi-building fs-1"></i>
+                                    <div className="w-100 h-100 d-flex align-items-center justify-content-center text-black-50">
+                                        <i className="bi bi-building fs-1"></i>
+                                    </div>
+                                )}
+                                
+                                <div className="position-absolute top-0 end-0 p-2">
+                                     <span className="badge bg-white text-dark shadow-sm">
+                                        {'★'.repeat(hotel.stars)}
+                                     </span>
+                                </div>
+
+                                {selectedHotelId === hotel.id && (
+                                    <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style={{background: 'rgba(0, 114, 222, 0.2)'}}>
+                                        <i className="bi bi-check-circle-fill text-primary" style={{fontSize: '4rem', textShadow: '0 0 10px white'}}></i>
+                                    </div>
                                 )}
                             </div>
-                            <div className="card-body">
-                                <div className="d-flex justify-content-between align-items-start">
-                                    <h6 className="fw-bold">{hotel.name}</h6>
-                                    <span className="text-warning">
-                                        {'★'.repeat(hotel.stars)}
-                                    </span>
-                                </div>
-                                <div className="mt-3">
-                                    <p className="mb-0 small text-muted">Cena za noc: {hotel.pricePerNight} PLN</p>
-                                    <h4 className="fw-bold text-primary mt-1">
-                                        {(hotel.pricePerNight * nights).toFixed(0)} PLN
-                                    </h4>
-                                    <small className="text-muted">za całość</small>
+
+                            <div className="card-body d-flex flex-column">
+                                <h5 className="fw-bold mb-1">{hotel.name}</h5>
+                                <p className="text-muted small mb-auto">Cena za noc: {hotel.pricePerNight} PLN</p>
+                                
+                                <hr className="my-3 opacity-25"/>
+
+                                <div className="d-flex justify-content-between align-items-center">
+                                    <div className="small text-muted">
+                                        Za {nights} {nights === 1 ? 'noc' : 'noce'}
+                                    </div>
+                                    <div className="fw-bold text-primary fs-4">
+                                        {(hotel.pricePerNight * nights).toFixed(0)} <small className="fs-6 text-muted">PLN</small>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -105,7 +120,7 @@ const Step3_Hotel = ({ formData, handleChange, nextStep, prevStep, setFormData }
             <div className="d-flex justify-content-between mt-5">
                 <button className="btn btn-outline-secondary" onClick={prevStep}>Wstecz</button>
                 <div>
-                     <button className="btn btn-link text-muted me-3" onClick={handleSkip}>Nie potrzebuję noclegu</button>
+                    
                      <button 
                         className="btn btn-primary px-4" 
                         onClick={nextStep} 

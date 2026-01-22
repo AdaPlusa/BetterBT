@@ -70,22 +70,35 @@ const Step2_Transport = ({ formData, setFormData, nextStep, prevStep }) => {
                     {routes.map(route => (
                         <div className="col-md-6" key={route.id}>
                             <div 
-                                className={`card h-100 cursor-pointer ${selectedRouteId === route.id ? 'border-primary bg-light' : 'border-secondary'}`} 
+                                className={`card h-100 p-2 ${selectedRouteId === route.id ? 'border-primary shadow-sm bg-light' : ''}`} 
                                 onClick={() => handleSelectRoute(route)}
-                                style={{cursor: 'pointer', borderWidth: selectedRouteId === route.id ? '2px' : '1px'}}
+                                style={{cursor: 'pointer', borderWidth: selectedRouteId === route.id ? '3px' : '1px', transition: 'all 0.2s'}}
                             >
-                                <div className="card-body d-flex align-items-center justify-content-between">
-                                    <div>
-                                        <h5 className="card-title fw-bold">
-                                            {route.transportType?.name} <span className="text-muted small">({route.provider?.name})</span>
-                                        </h5>
-                                        <p className="card-text text-muted mb-0">Czas: ~3h</p> {/* Mock czasu */}
+                                <div className="card-body">
+                                    <div className="d-flex justify-content-between align-items-center mb-3">
+                                        <div className="d-flex align-items-center gap-3">
+                                             <div className={`rounded-circle d-flex align-items-center justify-content-center ${selectedRouteId === route.id ? 'bg-primary text-white' : 'bg-light text-secondary'}`} style={{width: '50px', height: '50px'}}>
+                                                <i className={`bi ${route.transportTypeId === 1 ? 'bi-airplane' : 'bi-train-front'} fs-4`}></i>
+                                             </div>
+                                             <div>
+                                                <h5 className="card-title fw-bold mb-0">{route.provider?.name}</h5>
+                                                <small className="text-muted">{route.transportType?.name}</small>
+                                             </div>
+                                        </div>
+                                        {selectedRouteId === route.id && (
+                                            <i className="bi bi-check-circle-fill text-primary fs-3"></i>
+                                        )}
                                     </div>
-                                    <div className="text-end">
-                                        <h4 className="fw-bold text-primary mb-0">{route.price * 2} {route.currency}</h4>
-                                        <small className="text-muted" style={{fontSize: '0.75rem'}}>
-                                            {route.price} x 2 (Powrót)
-                                        </small>
+                                    
+                                    <hr className="my-3 opacity-25"/>
+
+                                    <div className="d-flex justify-content-between align-items-end">
+                                        <div className="text-muted small">
+                                            <div><i className="bi bi-arrow-left-right me-1"></i> Cena tam i z powrotem</div>
+                                        </div>
+                                        <div className="text-end">
+                                            <h3 className="fw-bold text-dark mb-0">{route.price * 2} <small className="fs-6 text-muted">{route.currency}</small></h3>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -122,7 +135,7 @@ const Step2_Transport = ({ formData, setFormData, nextStep, prevStep }) => {
             <div className="d-flex justify-content-between mt-5">
                 <button className="btn btn-outline-secondary" onClick={prevStep}>Wstecz</button>
                 <div>
-                     <button className="btn btn-link text-muted me-3" onClick={handleSkip}>Pomiń ten krok</button>
+                     
                      <button 
                         className="btn btn-primary px-4" 
                         onClick={nextStep} 
