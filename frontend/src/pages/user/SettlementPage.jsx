@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { useNotification } from '../../context/NotificationContext';
 
 const SettlementPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { notify } = useNotification();
     const [trip, setTrip] = useState(null);
     const [loading, setLoading] = useState(true);
     
@@ -40,11 +42,13 @@ const SettlementPage = () => {
         if (data.hotel) {
             // Recalculate cost based on days if days > 1
             const days = Math.ceil((new Date(data.endDate) - new Date(data.startDate)) / (1000 * 60 * 60 * 24)) + 1;
-            const hotelCost = data.hotel.price ? parseFloat(data.hotel.price) * days : 0; // Fix: Price * Days
-
+            const nights = Math.max(0, days - 1);
+            const hotelCost = data.hotel.price ? parseFloat(data.hotel.price) * nights : 0; 
+            // Check if days > 0
+            
             initialItems.push({
                 id: 'hotel',
-                description: `Hotel: ${data.hotel.name} (${days} dni)`,
+                description: `Hotel: ${data.hotel.name} (${nights} nocy)`,
                 planned: hotelCost,
                 actual: hotelCost, // Default to planned
                 payer: 'employer',
@@ -68,7 +72,8 @@ const SettlementPage = () => {
         
         // 3. Per Diem
         const days = Math.ceil((new Date(data.endDate) - new Date(data.startDate)) / (1000 * 60 * 60 * 24)) + 1;
-        const perDiem = days * 45; // Default rate
+        const perDiemRate = data.destination?.country?.perDiemRate ? parseFloat(data.destination.country.perDiemRate) : 45;
+        const perDiem = days * perDiemRate;
         initialItems.push({
             id: 'diety',
             description: `Diety (${days} dni)`,
@@ -102,7 +107,7 @@ const SettlementPage = () => {
 
     const handleAddExpense = () => {
         if (!newExpense.description || !newExpense.amount) {
-            alert("Wypełnij opis i kwotę!");
+            notify("Wypełnij opis i kwotę!", "error");
             return;
         }
 
@@ -157,6 +162,8 @@ const SettlementPage = () => {
                 return {
                     description: `${e.payer === 'employee' ? '[Pracownik]' : '[Firma]'} ${e.description}`,
                     amount: e.actual,
+                    payer: e.payer,
+                    categoryId: e.isDieta ? 2 : 1, // Optional: if backend uses category
                     fileData: fileData
                 };
             }));
@@ -165,11 +172,11 @@ const SettlementPage = () => {
                 items: processedItems,
                 totalAmount: totalActual
             });
-            alert("Wysłano do rozliczenia!");
+            notify("Wysłano do rozliczenia!");
             navigate('/my-trips');
         } catch (error) {
             console.error(error);
-            alert(`Błąd wysyłania: ${error.response?.data?.error || error.message}`);
+            notify(`Błąd wysyłania: ${error.response?.data?.error || error.message}`, "error");
         }
     };
 
@@ -283,7 +290,7 @@ const SettlementPage = () => {
                                     <div className="p-3 rounded border text-center text-dark" style={{background: '#d4edda'}}>
                                         <small className="text-uppercase fw-bold opacity-75">Do Zwrotu Pracownikowi</small>
                                         <h3 className="fw-bold mb-0 text-success">{toReturn.toFixed(2)} PLN</h3>
-                                        <small className="opacity-75">(Dieta + Wydatki własne)</small>
+                                        <small className="opacity-75">(Dieta + Wydatki nieprzewidziane)</small>
                                     </div>
                                 </div>
                             </div>

@@ -23,11 +23,6 @@ const Step1_General = ({ formData, handleChange, nextStep }) => {
            .catch(err => console.error(err));
     }, []);
 
-    // Inteligentne filtrowanie miast startowych (Disabled/Hidden since Origin is forced)
-    // Keep it just in case, or simplify. 
-    // Actually, if Origin is fixed, we don't need to filter IT based on destination. 
-    // We just need to valid that destination is NOT Warsaw (optional).
-
     const isValid = formData.destinationId && formData.originCityId && formData.startDate && formData.endDate && formData.purpose;
 
     return (
@@ -76,7 +71,7 @@ const Step1_General = ({ formData, handleChange, nextStep }) => {
                         />
                          {/* Hidden input to keep logic working if select was relied upon, but formData is already set in useEffect */}
                     </div>
-                    <div className="form-text small text-muted"><i className="bi bi-info-circle me-1"></i>Start delegacji zawsze z Hali (Warszawa).</div>
+                    <div className="form-text small text-muted"><i className="bi bi-info-circle me-1"></i>Start delegacji zawsze z biura (Warszawa).</div>
                 </div>
 
                 {/* Daty */}

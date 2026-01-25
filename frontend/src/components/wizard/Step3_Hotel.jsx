@@ -10,7 +10,13 @@ const Step3_Hotel = ({ formData, handleChange, nextStep, prevStep, setFormData }
     const start = new Date(formData.startDate);
     const end = new Date(formData.endDate);
     const duration = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-    const nights = duration > 0 ? duration : 1; // Minimum 1 noc
+    const nights = Math.max(0, duration); // No forced minimum
+
+    useEffect(() => {
+        if (formData.hotelId) {
+            setSelectedHotelId(formData.hotelId);
+        }
+    }, []);
 
     useEffect(() => {
         if (!formData.destinationId) return;

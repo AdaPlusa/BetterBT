@@ -56,7 +56,9 @@ const Step4_Summary = ({ formData, prevStep, handleSubmit, setFormData }) => {
                                 <td className="py-3 text-end fw-bold">{transport} PLN</td>
                             </tr>
                             <tr className="border-bottom">
-                                <td className="py-3 text-secondary">Nocleg</td>
+                                <td className="py-3 text-secondary">
+                                    Nocleg ({Math.max(0, days - 1)} noce)
+                                </td>
                                 <td className="py-3 text-end fw-bold">{hotel} PLN</td>
                             </tr>
                             <tr className="border-bottom">
@@ -67,7 +69,7 @@ const Step4_Summary = ({ formData, prevStep, handleSubmit, setFormData }) => {
                                 <td className="py-3 text-end fw-bold">{dietCost} PLN</td>
                             </tr>
                             <tr className="bg-light">
-                                <td className="py-3 fw-bold fs-5">Szacowany Koszt Całkowity</td>
+                                <td className="py-3 fw-bold fs-5">Przewidywane Koszty Całkowite</td>
                                 <td className="py-3 text-end fw-bold fs-4 text-primary">{totalCost} PLN</td>
                             </tr>
                         </tbody>

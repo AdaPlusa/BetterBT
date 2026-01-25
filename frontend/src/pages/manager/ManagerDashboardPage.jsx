@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
+import { generateTripPDF } from '../../utils/pdfGenerator';
 
 const ManagerDashboardPage = () => {
     const [stats, setStats] = useState({ total: 0, toApprove: 0, toSettle: 0, finished: 0 });
@@ -91,32 +92,29 @@ const ManagerDashboardPage = () => {
             </div>
 
             {/* Recent Trips Table */}
-            <div className="card shadow-sm border-0">
-                <div className="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
-                    <h5 className="fw-bold m-0 text-dark">Wszystkie Ostatnie Wnioski</h5>
-                    <button className="btn btn-light btn-sm rounded-pill px-3">Zobacz więcej</button>
-                </div>
+            {/* Recent Trips Table (Active/Pending) */}
+            <h5 className="fw-bold mb-3 text-dark">Ostatnie Wnioski</h5>
+            <div className="card shadow-sm border-0 mb-5">
                 <div className="table-responsive">
                     <table className="table table-hover align-middle mb-0">
                         <thead className="bg-light">
                             <tr>
-                                <th className="ps-4 text-muted small text-uppercase">Wniosek</th>
-                                <th className="text-muted small text-uppercase">Pracownik</th>
-                                <th className="text-muted small text-uppercase">Kierunek</th>
-                                <th className="text-muted small text-uppercase">Status</th>
-                                <th className="text-muted small text-uppercase text-end pe-4">Akcja</th>
+                                <th className="ps-4">ID</th>
+                                <th>Pracownik</th>
+                                <th>Kierunek</th>
+                                <th>Status</th>
+                                <th className="text-end pe-4">Akcja</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {recentTrips.map(trip => (
+                            {recentTrips.slice(0, 5).map(trip => (
                                 <tr key={trip.id}>
                                     <td className="ps-4 fw-bold">#{trip.id}</td>
                                     <td>
                                         <div className="d-flex align-items-center">
                                             <UserAvatar firstName={trip.user?.firstName} lastName={trip.user?.lastName} />
                                             <div className="ms-3">
-                                                <div className="fw-bold small text-dark">{trip.user?.firstName} {trip.user?.lastName}</div>
-                                                <div className="text-muted small" style={{fontSize: '0.75rem'}}>{trip.purpose}</div>
+                                                <div className="fw-bold small">{trip.user?.firstName} {trip.user?.lastName}</div>
                                             </div>
                                         </div>
                                     </td>
@@ -140,11 +138,57 @@ const ManagerDashboardPage = () => {
                                     </td>
                                 </tr>
                             ))}
-                            {recentTrips.length === 0 && (
-                                <tr>
-                                    <td colSpan="5" className="text-center py-5 text-muted">Brak ostatnich wniosków.</td>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* ARCHIVE TABLE (ALL TRIPS) */}
+            <h5 className="fw-bold mb-3 text-secondary">Archiwum Wszystkich Wniosków</h5>
+            <div className="card shadow-sm border-0">
+                <div className="table-responsive">
+                    <table className="table table-hover align-middle mb-0">
+                        <thead className="bg-light">
+                            <tr>
+                                <th className="ps-4">ID</th>
+                                <th>Pracownik</th>
+                                <th>Data</th>
+                                <th>Status</th>
+                                <th className="text-end pe-4">Dokumenty</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {recentTrips.map(trip => (
+                                <tr key={trip.id}>
+                                    <td className="ps-4 text-muted">#{trip.id}</td>
+                                    <td>{trip.user?.firstName} {trip.user?.lastName}</td>
+                                    <td>{new Date(trip.startDate).toLocaleDateString()}</td>
+                                    <td>
+                                        <span className={`badge bg-${
+                                            trip.statusId === 4 ? 'success' : (trip.statusId === 3 ? 'danger' : 'secondary')
+                                        }`}>
+                                            {trip.status?.name}
+                                        </span>
+                                    </td>
+                                    <td className="text-end pe-4">
+                                        {(trip.statusId === 4 || trip.statusId === 2) && (
+                                            <button 
+                                                className="btn btn-sm btn-outline-danger"
+                                                onClick={() => generateTripPDF(trip.id)}
+                                                title="Pobierz PDF"
+                                            >
+                                                <i className="bi bi-file-earmark-pdf-fill me-1"></i> PDF
+                                            </button>
+                                        )}
+                                        <button 
+                                            className="btn btn-sm btn-link text-muted ms-2"
+                                            onClick={() => navigate(`/manager/approve/${trip.id}`)}
+                                        >
+                                            <i className="bi bi-eye"></i>
+                                        </button>
+                                    </td>
                                 </tr>
-                            )}
+                            ))}
                         </tbody>
                     </table>
                 </div>

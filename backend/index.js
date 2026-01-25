@@ -15,6 +15,7 @@ const JWT_SECRET = "bardzo_tajny_klucz_studenta_123";
 // Middleware
 app.use(express.json({ limit: "50mb" }));
 app.use(cors());
+app.use('/uploads', express.static('uploads'));
 
 app.get("/", (req, res) => res.send("<h1>Serwer Better BT działa! 🚀</h1>"));
 
@@ -861,6 +862,33 @@ app.get("/trips", async (req, res) => {
     }
 });
 
+// --- 9. SZABLONY DOKUMENTÓW (ZSI Compliance) ---
+
+app.get("/templates/:name", async (req, res) => {
+    try {
+        const { name } = req.params;
+        const template = await prisma.documentTemplate.findUnique({ where: { name } });
+        res.json(template || { content: "" });
+    } catch (error) {
+        res.status(500).json({ error: "Błąd pobierania szablonu" });
+    }
+});
+
+app.put("/templates/:name", async (req, res) => {
+    try {
+        const { name } = req.params;
+        const { content } = req.body;
+        const template = await prisma.documentTemplate.upsert({
+            where: { name },
+            update: { content },
+            create: { name, content }
+        });
+        res.json(template);
+    } catch (error) {
+        res.status(500).json({ error: "Błąd zapisu szablonu" });
+    }
+});
+
 // --- SERVER START & SEED ---
 
 app.listen(PORT, async () => {
@@ -914,6 +942,18 @@ app.listen(PORT, async () => {
     if (pkpOld) {
         await prisma.transportProvider.update({ where: { id: pkpOld.id }, data: { name: "PKP Intercity" } });
         console.log("✅ Zaktualizowano nazwę dostawcy: PKP -> PKP Intercity");
+    }
+
+    // 6. Default Document Template (PDF Footer)
+    const footerTemplate = await prisma.documentTemplate.findUnique({ where: { name: "PDF_FOOTER" } });
+    if (!footerTemplate) {
+        await prisma.documentTemplate.create({
+            data: {
+                name: "PDF_FOOTER",
+                content: "Dokument wygenerowany automatycznie w systemie BetterBT. Nie wymaga podpisu ręcznego."
+            }
+        });
+        console.log("✅ Dodano domyślny szablon stopki PDF");
     }
 
     const providerNames = ["PKP Intercity", "LOT", "Uber", "Lufthansa", "Emirates", "Ryanair", "Bolt", "DB (Deutsche Bahn)"];

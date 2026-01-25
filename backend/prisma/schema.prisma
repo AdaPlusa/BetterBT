@@ -267,8 +267,17 @@ model Notification {
   createdAt DateTime @default(now())
 }
 
+
 model AppSetting {
   id    Int    @id @default(autoincrement())
   key   String @unique // np. "MAX_TRIP_DAYS"
   value String // np. "14"
+}
+
+// --- MODUŁ 6: SZABLONY DOKUMENTÓW (Wymóg ZSI: parametryzowane wydruki) ---
+model DocumentTemplate {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique // np. "PDF_FOOTER"
+  content   String
+  updatedAt DateTime @updatedAt
 }

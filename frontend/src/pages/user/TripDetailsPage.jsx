@@ -57,7 +57,7 @@ const TripDetailsPage = () => {
                 <div className="border-bottom pb-4 mb-4 d-flex justify-content-between align-items-start">
                     <div>
                         <h1 className="display-6 fw-bold text-dark">Wniosek Delegacyjny #{trip.id}</h1>
-                        <p className="text-muted text-uppercase small letter-spacing-2">Better Business Travel</p>
+                        
                     </div>
                     <div className={`badge bg-${isRejected ? 'danger' : (trip.status?.name === 'Zatwierdzona' ? 'success' : 'warning')} fs-6 px-4 py-2`}>
                         {trip.status?.name?.toUpperCase()}
@@ -134,10 +134,16 @@ const TripDetailsPage = () => {
 
                 {/* COST SECTION */}
                 <div className="mt-5 pt-4 border-top">
-                    <div className="d-flex justify-content-end align-items-center">
+                    <div className="d-flex justify-content-end align-items-center gap-5">
+                         {trip.settlement && (
+                            <div className="text-end">
+                                <h6 className="text-secondary text-uppercase small fw-bold">Całkowity Koszt (Rozliczenie)</h6>
+                                <h2 className="fw-bold text-success">{parseFloat(trip.settlement.totalAmount).toFixed(2)} PLN</h2>
+                            </div>
+                         )}
                         <div className="text-end">
-                            <h6 className="text-muted text-uppercase small">Szacunkowy Koszt Całkowity</h6>
-                            <h2 className="fw-bold text-primary">{trip.estimatedCost ? `${trip.estimatedCost} PLN` : "Brak danych"}</h2>
+                            <h6 className="text-muted text-uppercase small">Szacunkowy Koszt (Plan)</h6>
+                            <h2 className="fw-bold text-primary">{trip.estimatedCost ? `${parseFloat(trip.estimatedCost).toFixed(2)} PLN` : "Brak danych"}</h2>
                         </div>
                     </div>
                 </div>

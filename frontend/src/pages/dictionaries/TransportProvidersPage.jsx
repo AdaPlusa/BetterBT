@@ -30,7 +30,6 @@ const TransportProvidersPage = () => {
             setProviders(provRes.data);
             setTypes(typesRes.data);
         } catch (err) {
-        } catch (err) {
             notify('Błąd pobierania danych', 'error');
         }
     };

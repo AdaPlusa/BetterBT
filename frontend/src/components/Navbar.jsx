@@ -61,11 +61,22 @@ const Navbar = () => {
                <>
                  <li className="nav-item border-start ps-3 ms-2 border-secondary d-none d-lg-block"></li>
                  <li className="nav-item"><span className="nav-link text-white-50 text-uppercase small fw-bold">Admin</span></li>
-                 <li className="nav-item"><Link className="nav-link" to="/countries">Kraje</Link></li>
-                 <li className="nav-item"><Link className="nav-link" to="/cities">Miasta</Link></li>
-                 <li className="nav-item"><Link className="nav-link" to="/hotels">Hotele</Link></li>
-                 <li className="nav-item"><Link className="nav-link" to="/transport">Transport</Link></li>
-                 <li className="nav-item"><Link className="nav-link" to="/routes">Cennik Tras</Link></li>
+                 
+                 {/* Słowniki Dropdown */}
+                 <li className="nav-item dropdown">
+                    <a className="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Słowniki
+                    </a>
+                    <ul className="dropdown-menu">
+                        <li><Link className="dropdown-item" to="/countries">Kraje</Link></li>
+                        <li><Link className="dropdown-item" to="/cities">Miasta</Link></li>
+                        <li><Link className="dropdown-item" to="/hotels">Hotele</Link></li>
+                        <li><Link className="dropdown-item" to="/transport">Transport</Link></li>
+                        <li><Link className="dropdown-item" to="/routes">Cennik Tras</Link></li>
+                    </ul>
+                 </li>
+
+                 <li className="nav-item"><Link className="nav-link" to="/admin/templates">Szablony</Link></li>
                  <li className="divider border-bottom my-2 mx-2"></li>
                  <li className="nav-item"><Link className="nav-link fw-bold text-primary" to="/users">Użytkownicy</Link></li>
                </>
@@ -88,6 +99,11 @@ const Navbar = () => {
                  <li className="nav-item">
                    <Link className="nav-link text-white-50" to="/manager/settlements">
                        Do Rozliczenia
+                   </Link>
+                 </li>
+                 <li className="nav-item">
+                   <Link className="nav-link text-white-50" to="/manager/all-trips">
+                       Wszystkie Delegacje
                    </Link>
                  </li>
                </>

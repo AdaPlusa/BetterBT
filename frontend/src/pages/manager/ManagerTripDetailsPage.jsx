@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import ConfirmModal from '../../components/ui/ConfirmModal';
+import { useNotification } from '../../context/NotificationContext';
 
 const ManagerTripDetailsPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { notify } = useNotification();
     const [trip, setTrip] = useState(null);
     const [loading, setLoading] = useState(true);
     
     // Modal state
     const [showRejectModal, setShowRejectModal] = useState(false);
+    const [showApproveModal, setShowApproveModal] = useState(false);
     const [rejectReason, setRejectReason] = useState('');
 
     useEffect(() => {
@@ -25,51 +29,80 @@ const ManagerTripDetailsPage = () => {
     }, [id]);
 
     const handleApprove = () => {
-        if (!window.confirm("Zatwierdzić wniosek?")) return;
         api.patch(`/manager/approve/${id}`)
            .then(() => {
-               alert("Zatwierdzono!");
+               notify("Wniosek został zatwierdzony!");
                navigate('/manager');
            })
-           .catch(() => alert("Błąd."));
+           .catch(() => notify("Wystąpił błąd podczas zatwierdzania.", "error"));
     };
 
     const handleReject = () => {
-        if (!rejectReason) return alert("Podaj powód!");
+        if (!rejectReason) return notify("Podaj powód odrzucenia!", "error");
         api.patch(`/manager/reject/${id}`, { reason: rejectReason })
            .then(() => {
-               alert("Odrzucono.");
+               notify("Wniosek został odrzucony.");
                navigate('/manager');
            })
-           .catch(() => alert("Błąd."));
+           .catch(() => notify("Wystąpił błąd podczas odrzucania.", "error"));
     };
 
     const handleSettleApprove = () => {
         if (!window.confirm("Zatwierdzić rozliczenie i zamknąć delegację?")) return;
         api.patch(`/manager/settle-finish/${id}`)
             .then(() => {
-                alert("Rozliczenie zatwierdzone!");
+                notify("Rozliczenie zatwierdzone pomyślnie!");
                 navigate('/manager');
             })
-            .catch(err => alert("Błąd: " + err.message));
+            .catch(err => notify("Błąd: " + err.message, "error"));
     };
 
     const handleSettleReturn = () => {
         if (!window.confirm("Cofnąć do pracownika do poprawy?")) return;
         api.patch(`/manager/settle-return/${id}`)
             .then(() => {
-                alert("Zwrócono do poprawy.");
+                notify("Wniosek zwrócony do poprawy.");
                 navigate('/manager');
             })
-            .catch(err => alert("Błąd: " + err.message));
+            .catch(err => notify("Błąd: " + err.message, "error"));
     };
 
     if (loading) return <div className="p-5 text-center">Ładowanie...</div>;
     if (!trip) return <div className="p-5 text-center">Nie znaleziono delegacji.</div>;
 
-    const budgetStatus = parseFloat(trip.estimatedCost || 0) > 5000 ? 'warning' : 'success';
-    const budgetText = budgetStatus === 'warning' ? 'Wymaga uwagi (> 5000 PLN)' : 'OK (w limicie)';
-    const isSettlementPhase = trip.status?.name === 'Wysłana do rozliczenia';
+    // Calculate Total Estimated Cost (Matches User Settlement Logic)
+    const calculateTotalCost = () => {
+        let total = 0;
+        const days = Math.ceil((new Date(trip.endDate) - new Date(trip.startDate)) / (1000 * 60 * 60 * 24)) + 1;
+        const nights = Math.max(0, days - 1); // Hotel nights = days - 1
+        
+        // 1. Hotel
+        if (trip.hotel?.price) {
+            total += parseFloat(trip.hotel.price) * nights;
+        }
+
+        // 2. Transport
+        if (trip.transportRoute?.price) {
+            total += parseFloat(trip.transportRoute.price);
+        }
+
+        // 3. Diets
+        const perDiemRate = trip.destination?.country?.perDiemRate ? parseFloat(trip.destination.country.perDiemRate) : 45;
+        total += perDiemRate * days;
+
+        return { total, days, nights };
+    };
+
+    const { total: estimatedTotal, days, nights } = calculateTotalCost();
+    
+    // Use Final Settlement Amount if available, otherwise Estimated
+    const finalCost = trip.settlement?.totalAmount ? parseFloat(trip.settlement.totalAmount) : null;
+    const displayedCost = finalCost || estimatedTotal;
+    const isOverBudget = displayedCost > 5000;
+    
+    const budgetStatus = isOverBudget ? 'warning' : 'success';
+    const budgetText = isOverBudget ? 'Wymaga uwagi (> 5000 PLN)' : 'OK (w limicie)';
+    const isSettlementPhase = trip.status?.name === 'Wysłana do rozliczenia' || trip.status?.name === 'Rozliczona'; // Check status logic
 
     return (
         <div className="container mt-4 mb-5">
@@ -104,7 +137,7 @@ const ManagerTripDetailsPage = () => {
                             </div>
                             <div className="row mb-3 align-items-center">
                                 <div className="col-md-4 text-muted small text-uppercase fw-bold">Cel Wyjazdu</div>
-                                <div className="col-md-8 fst-italic">"{trip.purpose}"</div>
+                                <div className="col-md-8 fst-italic">{trip.purpose}</div>
                             </div>
                             <div className="row mb-3 align-items-center">
                                 <div className="col-md-4 text-muted small text-uppercase fw-bold">Kierunek</div>
@@ -117,7 +150,7 @@ const ManagerTripDetailsPage = () => {
                                 <div className="col-md-4 text-muted small text-uppercase fw-bold">Termin</div>
                                 <div className="col-md-8">
                                     <i className="bi bi-calendar-range me-2 text-muted"></i>
-                                    {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
+                                    {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()} <span className="text-muted ms-2">({days} dni)</span>
                                 </div>
                             </div>
                         </div>
@@ -173,6 +206,12 @@ const ManagerTripDetailsPage = () => {
                                                  <div className="fw-bold text-success mt-1">
                                                      {trip.hotel.price ? `${parseFloat(trip.hotel.price).toFixed(2)} PLN / noc` : 'Cena nieznana'}
                                                  </div>
+                                                  {/* Show calculated nights cost */}
+                                                  {trip.hotel.price && (
+                                                      <div className="small text-muted mt-1">
+                                                          Razem: {(parseFloat(trip.hotel.price) * nights).toFixed(2)} PLN ({nights} nocy)
+                                                      </div>
+                                                  )}
                                              </div>
                                          </div>
                                      ) : (
@@ -206,29 +245,36 @@ const ManagerTripDetailsPage = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {trip.settlement.items?.map((item, idx) => (
-                                                <tr key={idx}>
-                                                    <td className="ps-4 fw-medium">{item.description}</td>
-                                                    <td>
-                                                        <span className={`badge rounded-pill px-3 fw-normal ${item.payer === 'employee' ? 'bg-warning text-dark' : 'bg-info text-white'}`}>
-                                                            {item.payer === 'employee' ? 'Pracownik' : 'Firma'}
-                                                        </span>
-                                                    </td>
-                                                    <td className="fw-bold">{parseFloat(item.amount).toFixed(2)} PLN</td>
-                                                    <td className="text-end pe-4">
-                                                        {item.receipt && (
-                                                            <a 
-                                                                href={`http://localhost:3000${item.receipt.fileUrl}`} 
-                                                                target="_blank" 
-                                                                rel="noreferrer"
-                                                                className="btn btn-sm btn-outline-primary"
-                                                            >
-                                                                <i className="bi bi-file-earmark-text me-1"></i> Zobacz
-                                                            </a>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                            {trip.settlement.items?.map((item, idx) => {
+                                                // Fallback: check if payer is set, OR if description implies Company
+                                                const isEmployer = item.payer === 'employer' || item.description?.startsWith('[Firma]'); 
+                                                const badgeClass = isEmployer ? 'bg-info text-dark' : 'bg-warning text-dark';
+                                                const payerLabel = isEmployer ? 'Firma' : 'Pracownik';
+
+                                                return (
+                                                    <tr key={idx}>
+                                                        <td className="ps-4 fw-medium">{item.description}</td>
+                                                        <td>
+                                                            <span className={`badge rounded-pill px-3 fw-normal ${badgeClass}`}>
+                                                                {payerLabel}
+                                                            </span>
+                                                        </td>
+                                                        <td className="fw-bold">{parseFloat(item.amount).toFixed(2)} PLN</td>
+                                                        <td className="text-end pe-4">
+                                                            {item.receipt && (
+                                                                <a 
+                                                                    href={`http://localhost:3000${item.receipt.fileUrl}`} 
+                                                                    target="_blank" 
+                                                                    rel="noreferrer"
+                                                                    className="btn btn-sm btn-outline-primary"
+                                                                >
+                                                                    <i className="bi bi-file-earmark-text me-1"></i> Zobacz
+                                                                </a>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
@@ -241,12 +287,22 @@ const ManagerTripDetailsPage = () => {
                 <div className="col-lg-4">
                      <div className={`card shadow-sm border-0 mb-4 border-start border-4 border-${budgetStatus}`}>
                         <div className="card-body">
-                            <h6 className="text-secondary text-uppercase fw-bold small mb-2">Budżet Planowany</h6>
-                            <h2 className="fw-bold mb-1 display-6">{trip.estimatedCost ? `${parseFloat(trip.estimatedCost).toFixed(2)} PLN` : '-'}</h2>
+                            <h6 className="text-secondary text-uppercase fw-bold small mb-2">
+                                {finalCost ? 'Całkowity Koszt (Rozliczenie)' : 'Budżet Planowany (Estymacja)'}
+                            </h6>
+                            <h2 className="fw-bold mb-1 display-6">{displayedCost.toFixed(2)} PLN</h2>
                             <div className={`text-${budgetStatus} fw-bold small mt-2`}>
                                 <i className={`bi bi-${budgetStatus === 'warning' ? 'exclamation-triangle' : 'check-circle'} me-1`}></i>
                                 {budgetText}
                             </div>
+                             {finalCost && estimatedTotal !== finalCost && (
+                                <div className="mt-3 pt-3 border-top bg-light rounded p-2 d-flex justify-content-between align-items-center">
+                                    <span className="text-secondary fw-bold small text-uppercase">
+                                        <i className="bi bi-clipboard-data me-2"></i>Planowano
+                                    </span>
+                                    <span className="fs-5 fw-bold text-dark">{estimatedTotal.toFixed(2)} PLN</span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -266,7 +322,7 @@ const ManagerTripDetailsPage = () => {
                                  </>
                              ) : (
                                  <>
-                                     <button className="btn btn-success py-3 fw-bold shadow-sm" onClick={handleApprove} disabled={trip.status?.name !== 'Nowa'}>
+                                     <button className="btn btn-success py-3 fw-bold shadow-sm" onClick={() => setShowApproveModal(true)} disabled={trip.status?.name !== 'Nowa'}>
                                          <i className="bi bi-check-lg me-2"></i> AKCEPTUJ WNIOSEK
                                      </button>
                                      <button className="btn btn-outline-danger py-3 fw-bold" onClick={() => setShowRejectModal(true)} disabled={trip.status?.name !== 'Nowa'}>
@@ -279,36 +335,41 @@ const ManagerTripDetailsPage = () => {
                 </div>
             </div>
 
-            {/* Rejection Modal (Bootstrap Style Overlay) */}
-            {showRejectModal && (
-                <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}} tabIndex="-1">
-                    <div className="modal-dialog modal-dialog-centered">
-                        <div className="modal-content border-0 shadow-lg">
-                            <div className="modal-header bg-danger text-white">
-                                <h5 className="modal-title fw-bold">Odrzucenie Wniosku</h5>
-                                <button type="button" className="btn-close btn-close-white" onClick={() => setShowRejectModal(false)}></button>
-                            </div>
-                            <div className="modal-body p-4">
-                                <div className="mb-3">
-                                    <label className="form-label fw-bold">Powód odrzucenia <span className="text-danger">*</span></label>
-                                    <textarea 
-                                        className="form-control" 
-                                        rows="4" 
-                                        value={rejectReason}
-                                        onChange={(e) => setRejectReason(e.target.value)}
-                                        placeholder="Wpisz uzasadnienie..."
-                                        autoFocus
-                                    ></textarea>
-                                </div>
-                            </div>
-                            <div className="modal-footer border-0 pt-0 pb-4 pe-4">
-                                <button type="button" className="btn btn-light" onClick={() => setShowRejectModal(false)}>Anuluj</button>
-                                <button type="button" className="btn btn-danger px-4 fw-bold" onClick={handleReject}>Potwierdź</button>
-                            </div>
-                        </div>
-                    </div>
+            {/* Approval Modal */}
+            <ConfirmModal 
+                show={showApproveModal}
+                title="Zatwierdzenie Wniosku"
+                message="Czy na pewno chcesz zatwierdzić ten wniosek delegacyjny?"
+                confirmLabel="Zatwierdź"
+                variant="success"
+                icon="bi-check-circle"
+                onClose={() => setShowApproveModal(false)}
+                onConfirm={handleApprove}
+            />
+
+            {/* Rejection Modal */}
+            <ConfirmModal 
+                show={showRejectModal}
+                title="Odrzucenie Wniosku"
+                // Message optional, using children for textarea
+                confirmLabel="Potwierdź Odrzucenie"
+                variant="danger"
+                icon="bi-x-circle"
+                onClose={() => setShowRejectModal(false)}
+                onConfirm={handleReject}
+            >
+                 <div className="mb-3">
+                    <label className="form-label fw-bold">Powód odrzucenia <span className="text-danger">*</span></label>
+                    <textarea 
+                        className="form-control" 
+                        rows="4" 
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                        placeholder="Wpisz uzasadnienie..."
+                        autoFocus
+                    ></textarea>
                 </div>
-            )}
+            </ConfirmModal>
         </div>
     );
 };

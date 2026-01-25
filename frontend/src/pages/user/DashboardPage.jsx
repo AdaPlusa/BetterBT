@@ -85,7 +85,8 @@ const DashboardPage = () => {
                     const myTrips = res.data || [];
 
                     const pending = myTrips.filter(t => t.statusId === 1).length;
-                    const approved = myTrips.filter(t => t.statusId === 2).length;
+                    // Approved includes: Approved (2), Settled (4), Settlement Submitted (5), Settlement Returned (6)
+                    const approved = myTrips.filter(t => [2, 4, 5, 6].includes(t.statusId)).length;
                     const rejected = myTrips.filter(t => t.statusId === 3).length;
 
                     setUserStats({ pending, approved, rejected });

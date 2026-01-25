@@ -8,12 +8,14 @@ import HotelsPage from './pages/dictionaries/HotelsPage';
 import TransportPage from './pages/dictionaries/TransportPage';
 import TransportRoutesPage from './pages/dictionaries/TransportRoutesPage';
 import UsersPage from './pages/admin/UsersPage';
+import AdminTemplatesPage from './pages/admin/AdminTemplatesPage';
 import TripWizardPage from './pages/wizard/TripWizardPage';
 import MyTripsPage from './pages/user/MyTripsPage';
 import TripDetailsPage from './pages/user/TripDetailsPage';
 import SettlementPage from './pages/user/SettlementPage';
 import ManagerDashboardPage from './pages/manager/ManagerDashboardPage';
 import ManagerTripDetailsPage from './pages/manager/ManagerTripDetailsPage';
+import ManagerAllTripsPage from './pages/manager/ManagerAllTripsPage';
 
 import ManagerApprovalListPage from './pages/manager/ManagerApprovalListPage';
 import ManagerSettlementListPage from './pages/manager/ManagerSettlementListPage';
@@ -34,6 +36,7 @@ function App() {
               <Route path="/settlement/:id" element={<SettlementPage />} />
               <Route path="/trips/:id" element={<TripDetailsPage />} />
               <Route path="/manager" element={<ManagerDashboardPage />} />
+              <Route path="/manager/all-trips" element={<ManagerAllTripsPage />} />
               <Route path="/manager/approvals" element={<ManagerApprovalListPage />} />
               <Route path="/manager/settlements" element={<ManagerSettlementListPage />} />
               <Route path="/manager/approve/:id" element={<ManagerTripDetailsPage />} />
@@ -44,6 +47,7 @@ function App() {
               <Route path="/transport" element={<TransportPage />} />
               <Route path="/routes" element={<TransportRoutesPage />} />
               <Route path="/users" element={<UsersPage />} />
+              <Route path="/admin/templates" element={<AdminTemplatesPage />} />
           </Route>
         </Routes>
       </div>

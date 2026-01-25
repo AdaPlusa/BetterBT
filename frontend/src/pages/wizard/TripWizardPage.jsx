@@ -5,16 +5,18 @@ import Step1_General from '../../components/wizard/Step1_General';
 import Step2_Transport from '../../components/wizard/Step2_Transport';
 import Step3_Hotel from '../../components/wizard/Step3_Hotel';
 import Step4_Summary from '../../components/wizard/Step4_Summary';
+import { useNotification } from '../../context/NotificationContext';
 
 const TripWizardPage = () => {
     const navigate = useNavigate();
+    const { notify } = useNotification();
     const [step, setStep] = useState(1);
     
     // Stan Główny - wszystkie dane delegacji
     const [formData, setFormData] = useState({
         destinationId: '',
-        originCityId: '', // Dodano
-        isInternational: false, // Dodano
+        originCityId: '', 
+        isInternational: false, 
         startDate: '',
         endDate: '',
         purpose: '',
@@ -24,11 +26,11 @@ const TripWizardPage = () => {
         transportCost: 0, 
         transportDetails: '',
         hotelId: null,
-        hotelName: '', // Dodano dla wyświetlania w Step4?
+        hotelName: '', 
         hotelCost: 0,
         hotelCheckIn: '',
         hotelCheckOut: '',
-        estimatedCost: 0 // Dodano
+        estimatedCost: 0 
     });
 
     const handleChange = (e) => {
@@ -44,7 +46,7 @@ const TripWizardPage = () => {
         try {
             const userStr = sessionStorage.getItem('user');
             if (!userStr) {
-                alert("Błąd: Brak zalogowanego użytkownika!");
+                notify("Błąd: Brak zalogowanego użytkownika!", "error");
                 return;
             }
             const user = JSON.parse(userStr);
@@ -55,11 +57,11 @@ const TripWizardPage = () => {
             };
 
             await api.post('/trips', payload);
-            // Zamiast alertu i przekierowania, idź do kroku 5 (Sukces)
+            notify("Wniosek wysłany pomyślnie!");
             setStep(5);
         } catch (e) {
             console.error(e);
-            alert("Wystąpił błąd podczas wysyłania wniosku.");
+            notify("Wystąpił błąd podczas wysyłania wniosku.", "error");
         }
     };
 
