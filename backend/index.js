@@ -73,6 +73,28 @@ app.post("/auth/login", async (req, res) => {
   }
 });
 
+// POBIERANIE DANYCH ZALOGOWANEGO UŻYTKOWNIKA
+app.get("/auth/me", async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: "Brak tokenu" });
+        
+        const token = authHeader.split(" ")[1];
+        if (!token) return res.status(401).json({ error: "Błędny token" });
+
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+
+        if (!user) return res.status(404).json({ error: "Użytkownik nie istnieje" });
+
+        // Nie zwracamy hasła
+        const { password, ...userData } = user;
+        res.json(userData);
+    } catch (e) {
+        res.status(401).json({ error: "Nieautoryzowany" });
+    }
+});
+
 // UŻYTKOWNICY (Users)
 app.get("/users", async (req, res) => {
   try {
@@ -653,6 +675,72 @@ app.post("/trips/:id/settlement", async (req, res) => {
         
         console.error("SETTLEMENT ERROR:", error);
         res.status(500).json({ error: "Błąd zapisywania rozliczenia" });
+    }
+});
+
+// POST /trips/:id/expenses - Dodawanie POJEDYNCZEGO wydatku (Mobile)
+app.post("/trips/:id/expenses", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { amount, description, currency, category, receiptImage } = req.body;
+
+        // 1. Znajdź lub stwórz raport
+        let report = await prisma.expenseReport.findUnique({ where: { tripId: parseInt(id) } });
+        if (!report) {
+            report = await prisma.expenseReport.create({
+                data: {
+                    tripId: parseInt(id),
+                    totalAmount: 0, 
+                    status: 'DRAFT'
+                }
+            });
+        }
+
+        // 2. Obsługa zdjęcia (Receipt)
+        let receiptId = null;
+        if (receiptImage) {
+             try {
+                if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
+
+                const matches = receiptImage.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+                if (matches && matches.length === 3) {
+                    const buffer = Buffer.from(matches[2], 'base64');
+                    const extension = matches[1].split('/')[1] || 'bin';
+                    const fileName = `receipt_mobile_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${extension}`;
+                    
+                    fs.writeFileSync(`uploads/${fileName}`, buffer);
+
+                    const receipt = await prisma.receipt.create({
+                        data: {
+                            fileName: fileName,
+                            fileUrl: `/uploads/${fileName}`
+                        }
+                    });
+                    receiptId = receipt.id;
+                }
+            } catch (fileErr) {
+                console.error("File upload error (Mobile):", fileErr);
+            }
+        }
+
+        // 3. Stwórz ExpenseItem
+        const newItem = await prisma.expenseItem.create({
+            data: {
+                reportId: report.id,
+                amount: parseFloat(amount),
+                description: description,
+                payer: 'employee', // Domyślnie pracownik płaci
+                date: new Date(),
+                categoryId: 1, // Domyślna kategoria "Inne" (uproszczenie)
+                receiptId: receiptId
+            }
+        });
+
+        res.json(newItem);
+
+    } catch (error) {
+        console.error("Błąd dodawania wydatku mobilnego:", error);
+        res.status(500).json({ error: "Błąd zapisu wydatku" });
     }
 });
 

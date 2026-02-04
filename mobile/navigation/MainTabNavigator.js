@@ -7,9 +7,13 @@ import HomeScreen from '../screens/HomeScreen';
 import TripsListScreen from '../screens/TripsListScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
+import { useTheme } from 'react-native-paper';
+
 const Tab = createBottomTabNavigator();
 
 export default function MainTabNavigator() {
+  const theme = useTheme();
+
   return (
     <Tab.Navigator
       initialRouteName="Home"
@@ -27,9 +31,13 @@ export default function MainTabNavigator() {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#6200ee',
-        tabBarInactiveTintColor: 'gray',
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
         headerShown: true,
+        headerStyle: {
+            backgroundColor: theme.colors.primary,
+        },
+        headerTintColor: theme.colors.onPrimary,
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Pulpit' }} />
