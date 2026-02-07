@@ -12,7 +12,7 @@ export default function TripsListScreen({ navigation }) {
   const fetchTrips = async () => {
     try {
       const res = await api.get('/my-trips');
-      console.log("Trips data:", JSON.stringify(res.data, null, 2)); // Debug log
+
       
       // Sort by startDate descending (newest first)
       const sortedTrips = res.data.sort((a, b) => new Date(b.startDate) - new Date(a.startDate));

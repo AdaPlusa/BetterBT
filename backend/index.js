@@ -1,4 +1,4 @@
-// Imports
+
 const fs = require("fs");
 const express = require("express");
 const cors = require("cors");
@@ -10,9 +10,9 @@ const jwt = require("jsonwebtoken");
 const app = express();
 const prisma = new PrismaClient();
 const PORT = 3000;
-const JWT_SECRET = "bardzo_tajny_klucz_studenta_123";
+const JWT_SECRET = process.env.JWT_SECRET || "your-secure-secret-key";
 
-// Middleware
+
 app.use(express.json({ limit: "50mb" }));
 app.use(cors());
 app.use('/uploads', express.static('uploads'));
@@ -20,7 +20,7 @@ app.use('/uploads', express.static('uploads'));
 app.get("/", (req, res) => res.send("<h1>Serwer Better BT działa! 🚀</h1>"));
 
 
-// REJESTRACJA
+
 app.post("/auth/register", async (req, res) => {
   try {
     const { email, password, firstName, lastName, roleId } = req.body;
@@ -37,7 +37,7 @@ app.post("/auth/register", async (req, res) => {
         password: hashedPassword,
         firstName,
         lastName,
-        roleId: roleId ? parseInt(roleId) : 2, // Domyślna rola: User (2)
+        roleId: roleId ? parseInt(roleId) : 2, // Default role: User
       },
     });
     res.json({ message: "Rejestracja udana!", user: newUser });
@@ -47,7 +47,7 @@ app.post("/auth/register", async (req, res) => {
   }
 });
 
-// LOGOWANIE
+
 app.post("/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -73,7 +73,7 @@ app.post("/auth/login", async (req, res) => {
   }
 });
 
-// POBIERANIE DANYCH ZALOGOWANEGO UŻYTKOWNIKA
+
 app.get("/auth/me", async (req, res) => {
     try {
         const authHeader = req.headers.authorization;
@@ -95,7 +95,7 @@ app.get("/auth/me", async (req, res) => {
     }
 });
 
-// UŻYTKOWNICY (Users)
+
 app.get("/users", async (req, res) => {
   try {
     const users = await prisma.user.findMany({
@@ -111,10 +111,9 @@ app.get("/users", async (req, res) => {
   }
 });
 
-// ==========================================
-// --- CRUD (Słowniki) ---
+// --- API: Dictionaries ---
 
-// --- 1. KRAJE (Countries) ---
+
 app.get("/countries", async (req, res) => {
   const countries = await prisma.country.findMany();
   res.json(countries);
@@ -171,7 +170,7 @@ app.delete("/countries/:id", async (req, res) => {
   }
 });
 
-// --- 2. MIASTA (Cities) ---
+
 app.get("/cities", async (req, res) => {
   // include: { country: true } sprawia, że pobieramy też nazwę kraju, do którego należy miasto
   const cities = await prisma.city.findMany({ include: { country: true } });
@@ -236,7 +235,7 @@ app.delete("/cities/:id", async (req, res) => {
   }
 });
 
-// --- 3. WALUTY (Currencies) ---
+
 app.get("/currencies", async (req, res) => {
   const currencies = await prisma.currency.findMany();
   res.json(currencies);
@@ -252,7 +251,7 @@ app.post("/currencies", async (req, res) => {
   }
 });
 
-// --- 4. HOTELE (Hotels) ---
+
 app.get("/hotels", async (req, res) => {
   const { cityId } = req.query;
   const where = cityId ? { cityId: parseInt(cityId) } : {};
@@ -311,7 +310,7 @@ app.delete("/hotels/:id", async (req, res) => {
   }
 });
 
-// --- 5. TYPY TRANSPORTU (Transport Types) ---
+
 app.get("/transport-types", async (req, res) => {
   const types = await prisma.transportType.findMany();
   res.json(types);
@@ -337,7 +336,7 @@ app.delete("/transport-types/:id", async (req, res) => {
   }
 });
 
-// --- 5a. DOSTAWCY TRANSPORTU (Transport Providers) ---
+
 app.get("/transport-providers", async (req, res) => {
   const providers = await prisma.transportProvider.findMany({
       include: { type: true }
@@ -388,7 +387,7 @@ app.delete("/transport-providers/:id", async (req, res) => {
   }
 });
 
-// --- 6. TRASY TRANSPORTOWE (Transport Routes) ---
+
 app.get("/transport-routes", async (req, res) => {
   try {
     const routes = await prisma.transportRoute.findMany({
@@ -442,7 +441,7 @@ app.delete("/transport-routes/:id", async (req, res) => {
     }
 });
 
-// --- 7. USERS \/ ROLES ---
+
 
 app.patch("/users/:id/role", async (req, res) => {
   try {
@@ -463,12 +462,12 @@ app.get("/roles", async (req, res) => {
   res.json(roles);
 });
 
-// --- 8. DELEGACJE (Trips) ---
+
 app.post("/trips", async (req, res) => {
   try {
     const { userId, destinationId, startDate, endDate, purpose, transportType, transportCost, transportProviderId, transportTypeId, hotelId, hotelCheckIn, hotelCheckOut, isInternational, estimatedCost } = req.body;
 
-    // Ustal typ delegacji (1=Krajowa, 2=Zagraniczna)
+    // 1=Domestic, 2=International
     const tripTypeId = isInternational ? 2 : 1;
 
     // Prosta walidacja 
@@ -479,7 +478,7 @@ app.post("/trips", async (req, res) => {
         startDate: new Date(startDate),
         endDate: new Date(endDate),
         purpose: purpose,
-        statusId: 1, // Domyślnie: Nowa
+        statusId: 1, // Default: New
         typeId: tripTypeId,
         
         // Dodajemy transport TYLKO jeśli wybrano publiczny i mamy ID
@@ -729,9 +728,9 @@ app.post("/trips/:id/expenses", async (req, res) => {
                 reportId: report.id,
                 amount: parseFloat(amount),
                 description: description,
-                payer: 'employee', // Domyślnie pracownik płaci
+                payer: 'employee',
                 date: new Date(),
-                categoryId: 1, // Domyślna kategoria "Inne" (uproszczenie)
+                categoryId: 1,
                 receiptId: receiptId
             }
         });
@@ -792,7 +791,7 @@ app.patch("/manager/approve/:id", async (req, res) => {
         const { id } = req.params;
         const trip = await prisma.businessTrip.update({
             where: { id: parseInt(id) },
-            data: { statusId: 2 } // 2 = Zatwierdzona (w seedzie statusów trzeba to sprawdzić, ale zakładamy 2)
+            data: { statusId: 2 }
         });
         res.json(trip);
     } catch (error) {

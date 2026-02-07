@@ -27,15 +27,15 @@ const MyTripsPage = () => {
             try {
                 const userStr = sessionStorage.getItem('user');
                 if (!userStr) {
-                    console.warn("MyTripsPage: No user logged in.");
+
                     setLoading(false);
                     return;
                 }
                 const user = JSON.parse(userStr);
-                console.log("MyTripsPage: Fetching for user", user.id);
+
+
 
                 const res = await api.get(`/trips?userId=${user.id}`);
-                console.log("MyTripsPage: Loaded trips", res.data);
                 setTrips(res.data);
             } catch (error) {
                 console.error("Error fetching trips:", error);

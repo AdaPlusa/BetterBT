@@ -23,18 +23,18 @@ model User {
 
 model Role {
   id          Int          @id @default(autoincrement())
-  name        String       // np. Admin, User, Manager
+  name        String
   users       User[]
   permissions RolePermission[]
 }
 
 model Permission {
   id          Int              @id @default(autoincrement())
-  name        String           // np. CAN_EDIT_TRIPS
+  name        String
   roles       RolePermission[]
 }
 
-// Tabela łącząca (Many-to-Many)
+
 model RolePermission {
   id           Int        @id @default(autoincrement())
   roleId       Int
@@ -45,13 +45,13 @@ model RolePermission {
 
 model Department {
   id    Int    @id @default(autoincrement())
-  name  String // np. IT, HR
+  name  String
   users User[]
 }
 
 model UserPreferences {
   id        Int     @id @default(autoincrement())
-  userId    Int     @unique // Jeden user = jedne ustawienia
+  userId    Int     @unique
   theme     String  @default("light")
   language  String  @default("pl")
 }
@@ -80,13 +80,13 @@ model BusinessTrip {
 
 model TripStatus {
   id    Int            @id @default(autoincrement())
-  name  String         // np. Nowa, Zaakceptowana, W trakcie, Rozliczona
+  name  String
   trips BusinessTrip[]
 }
 
 model TripType {
   id    Int            @id @default(autoincrement())
-  name  String         // np. Krajowa, Zagraniczna
+  name  String
   trips BusinessTrip[]
 }
 
@@ -104,8 +104,8 @@ model TransportBooking {
 
 model TransportProvider {
   id       Int                @id @default(autoincrement())
-  name     String             // np. PKP, LOT, Uber
-  typeId   Int?               // Opcjonalne dla wstecznej kompatybilności, ale docelowo wymagane
+  name     String
+  typeId   Int?
   type     TransportType?     @relation(fields: [typeId], references: [id])
   bookings TransportBooking[]
   routes   TransportRoute[]   // Relacja do cennika
@@ -113,7 +113,7 @@ model TransportProvider {
 
 model TransportType {
   id       Int                @id @default(autoincrement())
-  name     String             // np. Pociąg, Samolot
+  name     String
   bookings TransportBooking[]
   providers TransportProvider[]
   routes    TransportRoute[]
@@ -146,8 +146,8 @@ model AccommodationBooking {
 model Hotel {
   id       Int                    @id @default(autoincrement())
   name     String
-  imageUrl String?                // Link do zdjęcia
-  price    Decimal                @default(250) // Cena za noc
+  imageUrl String?
+  price    Decimal                @default(250)
   cityId   Int
   city     City                   @relation(fields: [cityId], references: [id])
   bookings AccommodationBooking[]
@@ -158,9 +158,9 @@ model Hotel {
 model Country {
   id        Int    @id @default(autoincrement())
   name      String
-  code      String // np. PL, DE
-  continent String? // np. Europa, Azja
-  perDiemRate Decimal @default(45) // Domyślnie 45 PLN
+  code      String
+  continent String?
+  perDiemRate Decimal @default(45)
   cities    City[]
 }
 
@@ -177,7 +177,7 @@ model City {
 
 model Currency {
   id            Int            @id @default(autoincrement())
-  code          String         // PLN, EUR
+  code          String
   name          String
   exchangeRates ExchangeRate[]
 }
@@ -192,13 +192,13 @@ model ExchangeRate {
 
 model VatRate {
   id    Int     @id @default(autoincrement())
-  rate  Int     // np. 23, 8, 0
-  label String  // np. "Stawka podstawowa"
+  rate  Int
+  label String
 }
 
 model DietRate {
   id        Int     @id @default(autoincrement())
-  countryId Int // Powiązanie luźne (bez relacji dla uproszczenia diagramu)
+  countryId Int
   amount    Decimal
   currency  String
 }
@@ -210,7 +210,7 @@ model ExpenseReport {
   tripId      Int           @unique
   trip        BusinessTrip  @relation(fields: [tripId], references: [id])
   totalAmount Decimal
-  status      String        // np. Draft, Sent, Approved
+  status      String
   items       ExpenseItem[]
 }
 
@@ -230,7 +230,7 @@ model ExpenseItem {
 
 model ExpenseCategory {
   id    Int           @id @default(autoincrement())
-  name  String        // np. Wyżywienie, Transport Miejski
+  name  String
   items ExpenseItem[]
 }
 
@@ -248,7 +248,7 @@ model SystemLog {
   id        Int      @id @default(autoincrement())
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
-  action    String   // np. "LOGIN", "DELETE_TRIP"
+  action    String
   timestamp DateTime @default(now())
 }
 
@@ -261,7 +261,7 @@ model ErrorLog {
 
 model Notification {
   id        Int      @id @default(autoincrement())
-  userId    Int      // Luźne powiązanie
+  userId    Int
   message   String
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -270,14 +270,14 @@ model Notification {
 
 model AppSetting {
   id    Int    @id @default(autoincrement())
-  key   String @unique // np. "MAX_TRIP_DAYS"
-  value String // np. "14"
+  key   String @unique
+  value String
 }
 
-// --- MODUŁ 6: SZABLONY DOKUMENTÓW (Wymóg ZSI: parametryzowane wydruki) ---
+// --- MODUŁ 6: SZABLONY DOKUMENTÓW ---
 model DocumentTemplate {
   id        Int      @id @default(autoincrement())
-  name      String   @unique // np. "PDF_FOOTER"
+  name      String   @unique
   content   String
   updatedAt DateTime @updatedAt
 }

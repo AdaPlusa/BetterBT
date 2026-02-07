@@ -18,8 +18,8 @@ export default function ContactScreen() {
 
             <Card style={{ marginBottom: 20 }}>
                 <Card.Title 
-                    title="Twój Manager" 
-                    subtitle="Jan Kowalski" 
+                    title="Twój Opiekun" 
+                    subtitle="Marlena Morawska" 
                     left={(props) => <Avatar.Icon {...props} icon="account-tie" />}
                 />
                 <Card.Content>
@@ -38,11 +38,11 @@ export default function ContactScreen() {
                 />
                 <Card.Content>
                     <Text style={{ marginBottom: 10 }}>Problemy z aplikacją lub logowaniem.</Text>
-                    <Button icon="email" mode="outlined" onPress={() => sendEmail('it@firma.pl')} style={{ marginBottom: 10 }}>
-                        Napisz: it@firma.pl
+                    <Button icon="email" mode="outlined" onPress={() => sendEmail('it4you@betterbt.pl')} style={{ marginBottom: 10 }}>
+                        Napisz: it4you@betterbt.pl
                     </Button>
-                    <Button icon="phone" mode="outlined" onPress={() => callPhone('987654321')}>
-                        Zadzwoń: 987 654 321
+                    <Button icon="phone" mode="outlined" onPress={() => callPhone('505050505')}>
+                        Zadzwoń: 505 050 505
                     </Button>
                 </Card.Content>
             </Card>

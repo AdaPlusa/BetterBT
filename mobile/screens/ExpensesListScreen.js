@@ -18,7 +18,7 @@ export default function ExpensesListScreen({ route, navigation }) {
                 if (ip) {
                     setServerUrl(`http://${ip}:3000`);
                 }
-            } catch (e) { console.log(e); }
+            } catch (e) { }
         };
         getUrl();
 

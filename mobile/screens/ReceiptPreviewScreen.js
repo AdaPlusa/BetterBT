@@ -24,14 +24,13 @@ export default function ReceiptPreviewScreen({ route }) {
                         style={styles.image}
                         resizeMode="contain"
                         onError={(e) => {
-                            console.log("Image Load Error:", e.nativeEvent.error);
+
                             setError(true);
                         }}
                     />
                 )}
             </View>
-            {/* Debugging info - remove in production */}
-            <Text style={styles.debugText}>URL: {imageUri || 'Brak URI'}</Text>
+
         </View>
     );
 }

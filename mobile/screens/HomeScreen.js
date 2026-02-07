@@ -49,7 +49,7 @@ export default function HomeScreen({ navigation }) {
                 setUserName(userRes.data.firstName || userRes.data.email?.split('@')[0] || 'Użytkowniku');
             }
         } catch(e) {
-            console.log("Error fetching user", e);
+
         }
 
         // 2. Get Trips
