@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { Link } from 'react-router-dom';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -63,7 +64,7 @@ const LoginPage = () => {
           <button type="submit" className="btn btn-primary w-100">Zaloguj się</button>
         </form>
         <p className="mt-3 text-center">
-          Nie masz konta? <a href="/register">Zarejestruj się</a>
+          Nie masz konta? <Link to="/register">Zarejestruj się</Link>
         </p>
       </div>
     </div>
